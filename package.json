@@ -1,0 +1,24 @@
+{
+  "name": "remesh",
+  "version": "0.0.0",
+  "main": "index.js",
+  "author": "psxcode <psxcode@gmail.com> (https://github.com/psxcode)",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.16.7",
+    "@babel/preset-env": "^7.16.7",
+    "@babel/preset-typescript": "^7.16.7",
+    "@nextools/eslint-config": "^0.7.0",
+    "@nextools/typescript-config": "^0.3.0",
+    "babel-loader": "^8.2.3",
+    "eslint": "^7.0.0",
+    "html-webpack-plugin": "^5.5.0",
+    "typescript": "^4.5.4",
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.9.1",
+    "webpack-dev-server": "^4.7.2"
+  },
+  "eslintConfig": {
+    "extends": "@nextools/eslint-config"
+  }
+}

@@ -10,7 +10,6 @@ module.exports = {
   output: {
     filename: 'bundle.js',
     path: path.resolve('dist'),
-    publicPath: '/dist/',
   },
   module: {
     rules: [
@@ -31,14 +30,10 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: path.resolve('public/index.html'),
+      template: path.resolve('src/index.html'),
     }),
   ],
   devServer: {
-    static: {
-      directory: path.resolve('dist'),
-    },
-    compress: true,
     port: 9000,
   },
 }

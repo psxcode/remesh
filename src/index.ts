@@ -1,6 +1,5 @@
 import { drawEdges, drawLoop, drawPoints } from './draw'
-import { getLoopAABB, isPointNearPoints, triangulate, validateLoopOrder } from './math'
-import type { Pt } from './types'
+import { getLoopAABB, isPointNearPoints, calcEdges } from './math'
 
 const WIDTH = 640
 const HEIGHT = 480
@@ -16,9 +15,9 @@ canvas.height = HEIGHT
 const ctx = canvas.getContext('2d')!
 let isCreateLoopActive = false
 
-const loopPoints: Pt[] = []
+const loopPoints: number[] = []
 const indices: number[] = []
-const aabb: Pt[] = []
+const aabb: number[] = []
 
 const render = () => {
   ctx.fillStyle = 'white'
@@ -46,13 +45,11 @@ const render = () => {
 
 const recalc = () => {
   if (loopPoints.length > 3) {
-    validateLoopOrder(loopPoints)
-
     indices.length = 0
-    indices.push(...triangulate(loopPoints))
+    indices.push(...calcEdges(loopPoints))
 
     aabb.length = 0
-    // aabb.push(...getLoopAABB(loopPoints))
+    aabb.push(...getLoopAABB(loopPoints))
   }
 }
 
@@ -85,13 +82,11 @@ canvas.addEventListener('click', (e) => {
     return
   }
 
-  const pt = { x: e.clientX, y: e.clientY }
-
-  if (isPointNearPoints(pt, loopPoints)) {
+  if (isPointNearPoints(e.clientX, e.clientY, loopPoints)) {
     return
   }
 
-  loopPoints.push(pt)
+  loopPoints.push(e.clientX, e.clientY)
 
   render()
 })
@@ -115,10 +110,10 @@ loadLoopBtn.addEventListener('click', () => {
 
       loopPoints.length = 0
       loopPoints.push(...pts)
-
-      recalc()
-      render()
     } catch {}
+
+    recalc()
+    render()
   }
 })
 

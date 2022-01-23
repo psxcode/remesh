@@ -37,4 +37,5 @@ module.exports = {
     port: 9000,
     hot: false,
   },
+  devtool: 'inline-source-map',
 }

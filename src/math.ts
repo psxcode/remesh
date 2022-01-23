@@ -31,7 +31,7 @@ const projToSegment = (x: number, y: number, ax: number, ay: number, bx: number,
   ]
 }
 
-const projToLine = (x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] => {
+export const projToLine = (x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] => {
   const t = ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / len2(ax, ay, bx, by)
 
   return [
@@ -128,30 +128,14 @@ const getSegmentIntersectionPoint = (a0x: number, a0y: number, a1x: number, a1y:
   ]
 }
 
-const getClosestSegmentIndex = (x: number, y: number, points: readonly number[]) => {
-  let index = 0
-  let min = distToSegment2(x, y, points[0], points[1], points[2], points[3])
-
-  for (let i = 2; i < points.length; i += 2) {
-    const d = distToSegment2(x, y, points[i], points[i + 1], points[(i + 2) % points.length], points[(i + 3) % points.length])
-
-    if (d < min) {
-      index = i
-      min = d
-    }
-  }
-
-  return index
-}
-
-export const isPointInsideLoop = (x: number, y: number, points: readonly number[]) => {
-  let x0 = points[points.length - 2]
-  let y0 = points[points.length - 1]
+export const isPointInsideLoop = (x: number, y: number, points: readonly number[], pointsLength: number) => {
+  let x0 = points[pointsLength - 2]
+  let y0 = points[pointsLength - 1]
   let x1
   let y1
   let inside = false
 
-  for (let i = 0; i < points.length; i += 2) {
+  for (let i = 0; i < pointsLength; i += 2) {
     x1 = points[i]
     y1 = points[i + 1]
 
@@ -166,8 +150,8 @@ export const isPointInsideLoop = (x: number, y: number, points: readonly number[
 }
 
 // const isSegmentIntersectLoop = (p0: Pt, p1: Pt, points: readonly Pt[]): boolean => {
-//   for (let i = 0; i < points.length; i++) {
-//     if (isIntersecting(p0, p1, points[i], points[(i + 1) % points.length])) {
+//   for (let i = 0; i < pointsLength; i++) {
+//     if (isIntersecting(p0, p1, points[i], points[(i + 1) % pointsLength])) {
 //       return true
 //     }
 //   }
@@ -175,9 +159,31 @@ export const isPointInsideLoop = (x: number, y: number, points: readonly number[
 //   return false
 // }
 
-export const isPointNearPoints = (x: number, y: number, points: number[]): boolean => {
+export const findPointNearby = (x: number, y: number, points: readonly number[], dist = 8): number | null => {
+  const dist2 = dist * dist
+
   for (let i = 0; i < points.length; i += 2) {
-    if (len2(x, y, points[i], points[i + 1]) < 64) {
+    if (len2(x, y, points[i], points[i + 1]) < dist2) {
+      return i
+    }
+  }
+
+  return null
+}
+
+export const isAnyPointNearbyNewEdge = (x: number, y: number, basePtIndex: number, targetPtIndex: number | null, points: readonly number[], dist = 8): boolean => {
+  const dist2 = dist * dist
+  const bx = points[basePtIndex]
+  const by = points[basePtIndex + 1]
+
+  for (let i = 0; i < points.length; i += 2) {
+    if (i === basePtIndex || i === targetPtIndex) {
+      continue
+    }
+
+    const d = distToSegment2(points[i], points[i + 1], x, y, bx, by)
+
+    if (d < dist2) {
       return true
     }
   }
@@ -185,7 +191,192 @@ export const isPointNearPoints = (x: number, y: number, points: number[]): boole
   return false
 }
 
-const discardEdge = (indices: number[], edgeIndex: number) => {
+export const findLoopEdgeNearby = (x: number, y: number, points: readonly number[], pointsLength: number, dist = 8): number | null => {
+  let lp0x = points[pointsLength - 2]
+  let lp0y = points[pointsLength - 1]
+  let index = 0
+  let min = Infinity
+
+  for (let i = 0; i < pointsLength; i += 2) {
+    const lp1x = points[i]
+    const lp1y = points[i + 1]
+
+    const d = distToSegment2(x, y, lp0x, lp0y, lp1x, lp1y)
+
+    if (d < min) {
+      index = i
+      min = d
+    }
+
+    lp0x = lp1x
+    lp0y = lp1y
+  }
+
+  if (min < dist * dist) {
+    return index
+  }
+
+  return null
+}
+
+export const findEdgeNearby = (x: number, y: number, points: readonly number[], edges: readonly number[], dist = 8): number | null => {
+  let index = 0
+  let min = Infinity
+
+  for (let i = 0; i < edges.length; i += 2) {
+    const p0x = points[edges[i]]
+    const p0y = points[edges[i] + 1]
+    const p1x = points[edges[i + 1]]
+    const p1y = points[edges[i + 1] + 1]
+
+    const d = distToSegment2(x, y, p0x, p0y, p1x, p1y)
+
+    if (d < min) {
+      index = i
+      min = d
+    }
+  }
+
+  if (min < dist * dist) {
+    return index
+  }
+
+  return null
+}
+
+export const findIntersectionWithLoop = (x: number, y: number, basePtIndex: number, points: readonly number[], pointsLength: number): {point: [number, number], index: number} | null => {
+  const x0 = points[basePtIndex]
+  const y0 = points[basePtIndex + 1]
+  let lp0x = points[pointsLength - 2]
+  let lp0y = points[pointsLength - 1]
+
+  const indexes: number[] = []
+  const intersectPoints: [number, number][] = []
+
+  // Collect loop intersections
+  for (let i = 0; i < pointsLength; i += 2) {
+    const lp1x = points[i]
+    const lp1y = points[i + 1]
+
+    const pt = getSegmentIntersectionPoint(x0, y0, x, y, lp0x, lp0y, lp1x, lp1y)
+
+    if (pt !== null) {
+      intersectPoints.push(pt)
+      indexes.push((i - 2 + pointsLength) % pointsLength)
+    }
+
+    lp0x = lp1x
+    lp0y = lp1y
+  }
+
+  if (intersectPoints.length === 0) {
+    return null
+  }
+
+  if (intersectPoints.length === 1) {
+    return {
+      index: indexes[0],
+      point: intersectPoints[0],
+    }
+  }
+
+  // Get closest intersection
+  let pt = intersectPoints[0]
+  let minI = 0
+  let minL = len2(x0, y0, pt[0], pt[1])
+
+  for (let i = 1; i < intersectPoints.length; i++) {
+    pt = intersectPoints[i]
+
+    const l = len2(x0, y0, pt[0], pt[1])
+
+    if (l < minL) {
+      minL = l
+      minI = i
+    }
+  }
+
+  return {
+    index: minI,
+    point: intersectPoints[minI],
+  }
+}
+
+export const findIntersectionWithContraint = (x: number, y: number, basePtIndex: number, points: readonly number[], pointsLength: number, constraintEdges: readonly number[]): {point: [number, number], index: number} | null => {
+  const x0 = points[basePtIndex]
+  const y0 = points[basePtIndex + 1]
+
+  const edgeIndexes: number[] = []
+  const intersectPoints: [number, number][] = []
+
+  // Collect edge intersections
+  for (let i = 0; i < constraintEdges.length; i += 2) {
+    const pi0 = constraintEdges[i]
+    const pi1 = constraintEdges[i + 1]
+
+    if (pi0 === basePtIndex || pi1 === basePtIndex) {
+      continue
+    }
+
+    const pt = getSegmentIntersectionPoint(x0, y0, x, y, points[pi0], points[pi0 + 1], points[pi1], points[pi1 + 1])
+
+    if (pt !== null) {
+      intersectPoints.push(pt)
+      edgeIndexes.push(i)
+    }
+  }
+
+  if (intersectPoints.length === 0) {
+    return null
+  }
+
+  if (intersectPoints.length === 1) {
+    return {
+      index: edgeIndexes[0],
+      point: intersectPoints[0],
+    }
+  }
+
+  // Get closest intersection
+  let pt = intersectPoints[0]
+  let minI = 0
+  let minL = len2(x0, y0, pt[0], pt[1])
+
+  for (let i = 1; i < intersectPoints.length; i++) {
+    pt = intersectPoints[i]
+
+    const l = len2(x0, y0, pt[0], pt[1])
+
+    if (l < minL) {
+      minL = l
+      minI = i
+    }
+  }
+
+  return {
+    index: edgeIndexes[minI],
+    point: intersectPoints[minI],
+  }
+}
+
+export const isExistingEdge = (i0: number, i1: number, edges: readonly number[]): boolean => {
+  for (let i = 0; i < edges.length; i += 2) {
+    const ei0 = edges[i]
+    const ei1 = edges[i + 1]
+
+    if ((i0 === ei0 && i1 === ei1) || (i0 === ei1 && i1 === ei0)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+export const isExistingLoopEdge = (pi0: number, pi1: number, pointsLength: number): boolean => {
+  return pi0 < pointsLength && pi1 < pointsLength && (pi0 + 2 === pi1 || pi1 + 2 === pi0)
+}
+
+const discardEdge = (edgeIndex: number, indices: number[]) => {
   for (let i = edgeIndex + 2; i < indices.length; i += 2) {
     indices[i - 2] = indices[i]
     indices[i - 1] = indices[i + 1]
@@ -193,7 +384,7 @@ const discardEdge = (indices: number[], edgeIndex: number) => {
 
   indices.length = indices.length - 2
 }
-const discardEdges = (indices: number[], edgeIndexes: number[]) => {
+const discardEdges = (indices: number[], edgeIndexes: readonly number[]) => {
   // Mark discarded edges with -1
   for (let i = 0;i < edgeIndexes.length; i++) {
     indices[edgeIndexes[i]] = -1
@@ -201,7 +392,7 @@ const discardEdges = (indices: number[], edgeIndexes: number[]) => {
 
   for (let i = 0, len = indices.length; i < len; i += 2) {
     if (indices[i] === -1) {
-      discardEdge(indices, i)
+      discardEdge(i, indices)
       i -= 2
       len -= 2
     }
@@ -243,7 +434,7 @@ const isMiddleOutsideLoop = (edgeIndex: number, indices: readonly number[], poin
   return true
 }
 
-const doesIntersectLoop = (edgeIndex: number, indices: readonly number[], points: readonly number[]): boolean => {
+const doesIntersectLoop = (edgeIndex: number, indices: readonly number[], points: readonly number[], pointsLength: number): boolean => {
   const p0 = indices[edgeIndex]
   const p1 = indices[edgeIndex + 1]
   const x0 = points[p0]
@@ -255,8 +446,8 @@ const doesIntersectLoop = (edgeIndex: number, indices: readonly number[], points
     return true
   }
 
-  for (let pi = 0; pi < points.length; pi += 2) {
-    const pii = (pi + 2) % points.length
+  for (let pi = 0; pi < pointsLength; pi += 2) {
+    const pii = (pi + 2) % pointsLength
 
     if (pi !== p0 && pi !== p1 && pii !== p0 && pii !== p1 && isIntersecting(x0, y0, x1, y1, points[pi], points[pi + 1], points[pii], points[pii + 1])) {
       // console.log('INTER', `${ei0}->${ei1}`, `${pi}->${npi}`)
@@ -268,7 +459,7 @@ const doesIntersectLoop = (edgeIndex: number, indices: readonly number[], points
   return false
 }
 
-export const calcEdges = (points: readonly number[]): number[] => {
+export const calcEdges = (points: readonly number[], pointsLength: number): number[] => {
   const indices: number[] = []
 
   const discardLongerEdges = (edgeIndex: number, /* out */discardedEdgeIndexes: number[]) => {
@@ -332,10 +523,10 @@ export const calcEdges = (points: readonly number[]): number[] => {
   }
 
   // Generate edges
-  for (let i = 0; i < points.length; i += 2) {
+  for (let i = 0; i < pointsLength; i += 2) {
     // console.log('------------------ I:', i)
 
-    for (let k = (i + 4) % points.length; k !== (i - 2 + points.length) % points.length; k = ((k + 2) % points.length)) {
+    for (let k = (i + 4) % pointsLength; k !== (i - 2 + pointsLength) % pointsLength; k = ((k + 2) % pointsLength)) {
       // console.log(i, '->', k)
 
       // Same edge exists, but reversed
@@ -352,7 +543,7 @@ export const calcEdges = (points: readonly number[]): number[] => {
 
   for (let i = 0, len = indices.length; i < len; i += 2) {
     if (doesIntersectLoop(i, indices, points)) {
-      discardEdge(indices, i)
+      discardEdge(i, indices)
       i -= 2
       len -= 2
 
@@ -375,13 +566,13 @@ export const calcEdges = (points: readonly number[]): number[] => {
   return indices
 }
 
-export const getLoopAABB = (points: readonly number[]): number[] => {
+export const getLoopAABB = (points: readonly number[], pointsLength: number): number[] => {
   let minX = points[0]
   let minY = points[1]
   let maxX = minX
   let maxY = minY
 
-  for (let i = 2; i < points.length; i += 2) {
+  for (let i = 2; i < pointsLength; i += 2) {
     const ptx = points[i]
     const pty = points[i + 1]
 

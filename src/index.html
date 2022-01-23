@@ -11,15 +11,74 @@
     body {
       margin: 0;
     }
-    #create-loop[active] {
-      background-color: aquamarine;
+    button[active] {
+      background-color: green;
+      color: white
     }
+    #screen {
+      position: relative;
+    }
+    #fg {
+      position: absolute;
+      left: 0;
+      top: 0
+    }
+    #creation {
+      position: absolute;
+      width: fit-content;
+      left: 0;
+      right: 0;
+      top: 20px;
+      margin: 0 auto;
+    }
+    #state-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .state-item {
+      all: initial;
+      position: relative;
+      width: 64px;
+      height: 64px;
+      box-shadow: 0 0 4px 0 rgba(0, 0, 0, .5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .state-item.active {
+      background-color: rgba(0, 255, 0, .3);
+      box-shadow: 0 0 4px 0 rgba(0, 0, 0, .5) inset;
+    }
+
+    .state-item > button {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+    }
+
   </style>
-  <canvas id="canvas" width="640" height="480"></canvas>
-  <div>
-    <button id="create-loop">Create loop</button>
-    <button id="save-loop">Save current loop</button>
-    <button id="load-loop">Load current loop</button>
+  <div id="screen">
+    <canvas id="bg" width="640" height="480"></canvas>
+    <canvas id="fg" width="640" height="480"></canvas>
   </div>
+  <div id="creation">
+    <button id="create-loop">Create Loop</button>
+    <button id="create-edge">Create Edge</button>
+  </div>
+  <div>
+    <button id="save-state">Save state</button>
+    <button id="load-state">Load state</button>
+    <button id="add-state">Add state</button>
+  </div>
+  <ul id="state-list"></ul>
+  <template id="state-template">
+    <li class="state-item">
+      <span></span>
+      <button>&cross;</button>
+    </li>
+  </template>
 </body>
 </html>

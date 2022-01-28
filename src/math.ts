@@ -1,35 +1,36 @@
+/* eslint-disable no-param-reassign */
 /* eslint-disable max-params */
 const len2 = (x0: number, y0: number, x1: number, y1: number): number => {
   return (x0 - x1) ** 2 + (y0 - y1) ** 2
 }
 
-const cross = (x: number, y: number, ax: number, ay: number, bx: number, by: number) => {
-  return (x - ax) * (by - ay) - (bx - ax) * (y - ay)
-}
+// const cross = (x: number, y: number, ax: number, ay: number, bx: number, by: number) => {
+//   return (x - ax) * (by - ay) - (bx - ax) * (y - ay)
+// }
 
-const isPointOnLine = (x: number, y: number, ax: number, ay: number, bx: number, by: number): boolean => {
-  return cross(x, y, ax, ay, bx, by) === 0
-}
+// const isPointOnLine = (x: number, y: number, ax: number, ay: number, bx: number, by: number): boolean => {
+//   return cross(x, y, ax, ay, bx, by) === 0
+// }
 
-const isPointInsideSegment = (x: number, y: number, ax: number, ay: number, bx: number, by: number): boolean => {
-  return cross(x, y, ax, ay, bx, by) < 0
-}
+// const isPointInsideSegment = (x: number, y: number, ax: number, ay: number, bx: number, by: number): boolean => {
+//   return cross(x, y, ax, ay, bx, by) < 0
+// }
 
-const projToSegment = (x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] => {
-  // Subtract (b - a) and (p - a), to base 2 vectors on (a) point
-  // Calc dot-product
-  // Divide result by (b - a) length to get projected (p - a) length
-  let t = ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / len2(ax, ay, bx, by)
+// const projToSegment = (x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] => {
+//   // Subtract (b - a) and (p - a), to base 2 vectors on (a) point
+//   // Calc dot-product
+//   // Divide result by (b - a) length to get projected (p - a) length
+//   let t = ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / len2(ax, ay, bx, by)
 
-  // Clamp to segment bounds
-  t = Math.max(0, Math.min(1, t))
+//   // Clamp to segment bounds
+//   t = Math.max(0, Math.min(1, t))
 
-  // Contruct projected point
-  return [
-    ax + t * (bx - ax),
-    ay + t * (by - ay),
-  ]
-}
+//   // Contruct projected point
+//   return [
+//     ax + t * (bx - ax),
+//     ay + t * (by - ay),
+//   ]
+// }
 
 export const projToLine = (x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] => {
   const t = ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / len2(ax, ay, bx, by)
@@ -48,15 +49,15 @@ const distToSegment2 = (x: number, y: number, ax: number, ay: number, bx: number
   return len2(x, y, ax + t * (bx - ax), ay + t * (by - ay))
 }
 
-const distToLine2 = (x: number, y: number, ax: number, ay: number, bx: number, by: number): number => {
-  const [x1, y1] = projToLine(x, y, ax, ay, bx, by)
+// const distToLine2 = (x: number, y: number, ax: number, ay: number, bx: number, by: number): number => {
+//   const [x1, y1] = projToLine(x, y, ax, ay, bx, by)
 
-  return len2(x, y, x1, y1)
-}
+//   return len2(x, y, x1, y1)
+// }
 
-const isLineOnLine = (a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): boolean => {
-  return isPointOnLine(a0x, a0y, b0x, b0y, b1x, b1y) && isPointOnLine(a1x, a1y, b0x, b0y, b1x, b1y)
-}
+// const isLineOnLine = (a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): boolean => {
+//   return isPointOnLine(a0x, a0y, b0x, b0y, b1x, b1y) && isPointOnLine(a1x, a1y, b0x, b0y, b1x, b1y)
+// }
 
 const isIntersecting = (a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): boolean => {
   const v0x = a1x - a0x
@@ -128,27 +129,6 @@ const getSegmentIntersectionPoint = (a0x: number, a0y: number, a1x: number, a1y:
   ]
 }
 
-export const isPointInsideLoop = (x: number, y: number, points: readonly number[], pointsLength: number) => {
-  let x0 = points[pointsLength - 2]
-  let y0 = points[pointsLength - 1]
-  let x1
-  let y1
-  let inside = false
-
-  for (let i = 0; i < pointsLength; i += 2) {
-    x1 = points[i]
-    y1 = points[i + 1]
-
-    if (((y1 > y) !== (y0 > y)) && (x < (x0 - x1) * (y - y1) / (y0 - y1) + x1)) {
-      inside = !inside
-    }
-
-    x0 = x1; y0 = y1
-  }
-
-  return inside
-}
-
 // const isSegmentIntersectLoop = (p0: Pt, p1: Pt, points: readonly Pt[]): boolean => {
 //   for (let i = 0; i < pointsLength; i++) {
 //     if (isIntersecting(p0, p1, points[i], points[(i + 1) % pointsLength])) {
@@ -159,245 +139,6 @@ export const isPointInsideLoop = (x: number, y: number, points: readonly number[
 //   return false
 // }
 
-export const findPointNearby = (x: number, y: number, points: readonly number[], dist = 8): number | null => {
-  const dist2 = dist * dist
-
-  for (let i = 0; i < points.length; i += 2) {
-    if (len2(x, y, points[i], points[i + 1]) < dist2) {
-      return i
-    }
-  }
-
-  return null
-}
-
-export const isAnyPointNearbyNewEdge = (x: number, y: number, basePtIndex: number, targetPtIndex: number | null, points: readonly number[], dist = 8): boolean => {
-  const dist2 = dist * dist
-  const bx = points[basePtIndex]
-  const by = points[basePtIndex + 1]
-
-  for (let i = 0; i < points.length; i += 2) {
-    if (i === basePtIndex || i === targetPtIndex) {
-      continue
-    }
-
-    const d = distToSegment2(points[i], points[i + 1], x, y, bx, by)
-
-    if (d < dist2) {
-      return true
-    }
-  }
-
-  return false
-}
-
-export const findLoopEdgeNearby = (x: number, y: number, points: readonly number[], pointsLength: number, dist = 8): number | null => {
-  let lp0x = points[pointsLength - 2]
-  let lp0y = points[pointsLength - 1]
-  let index = 0
-  let min = Infinity
-
-  for (let i = 0; i < pointsLength; i += 2) {
-    const lp1x = points[i]
-    const lp1y = points[i + 1]
-
-    const d = distToSegment2(x, y, lp0x, lp0y, lp1x, lp1y)
-
-    if (d < min) {
-      index = i
-      min = d
-    }
-
-    lp0x = lp1x
-    lp0y = lp1y
-  }
-
-  if (min < dist * dist) {
-    return index
-  }
-
-  return null
-}
-
-export const findEdgeNearby = (x: number, y: number, points: readonly number[], edges: readonly number[], dist = 8): number | null => {
-  let index = 0
-  let min = Infinity
-
-  for (let i = 0; i < edges.length; i += 2) {
-    const p0x = points[edges[i]]
-    const p0y = points[edges[i] + 1]
-    const p1x = points[edges[i + 1]]
-    const p1y = points[edges[i + 1] + 1]
-
-    const d = distToSegment2(x, y, p0x, p0y, p1x, p1y)
-
-    if (d < min) {
-      index = i
-      min = d
-    }
-  }
-
-  if (min < dist * dist) {
-    return index
-  }
-
-  return null
-}
-
-export const findIntersectionWithLoop = (x: number, y: number, basePtIndex: number, points: readonly number[], pointsLength: number): {point: [number, number], index: number} | null => {
-  const x0 = points[basePtIndex]
-  const y0 = points[basePtIndex + 1]
-  let lp0x = points[pointsLength - 2]
-  let lp0y = points[pointsLength - 1]
-
-  const indexes: number[] = []
-  const intersectPoints: [number, number][] = []
-
-  // Collect loop intersections
-  for (let i = 0; i < pointsLength; i += 2) {
-    const lp1x = points[i]
-    const lp1y = points[i + 1]
-
-    const pt = getSegmentIntersectionPoint(x0, y0, x, y, lp0x, lp0y, lp1x, lp1y)
-
-    if (pt !== null) {
-      intersectPoints.push(pt)
-      indexes.push((i - 2 + pointsLength) % pointsLength)
-    }
-
-    lp0x = lp1x
-    lp0y = lp1y
-  }
-
-  if (intersectPoints.length === 0) {
-    return null
-  }
-
-  if (intersectPoints.length === 1) {
-    return {
-      index: indexes[0],
-      point: intersectPoints[0],
-    }
-  }
-
-  // Get closest intersection
-  let pt = intersectPoints[0]
-  let minI = 0
-  let minL = len2(x0, y0, pt[0], pt[1])
-
-  for (let i = 1; i < intersectPoints.length; i++) {
-    pt = intersectPoints[i]
-
-    const l = len2(x0, y0, pt[0], pt[1])
-
-    if (l < minL) {
-      minL = l
-      minI = i
-    }
-  }
-
-  return {
-    index: minI,
-    point: intersectPoints[minI],
-  }
-}
-
-export const findIntersectionWithContraint = (x: number, y: number, basePtIndex: number, points: readonly number[], pointsLength: number, constraintEdges: readonly number[]): {point: [number, number], index: number} | null => {
-  const x0 = points[basePtIndex]
-  const y0 = points[basePtIndex + 1]
-
-  const edgeIndexes: number[] = []
-  const intersectPoints: [number, number][] = []
-
-  // Collect edge intersections
-  for (let i = 0; i < constraintEdges.length; i += 2) {
-    const pi0 = constraintEdges[i]
-    const pi1 = constraintEdges[i + 1]
-
-    if (pi0 === basePtIndex || pi1 === basePtIndex) {
-      continue
-    }
-
-    const pt = getSegmentIntersectionPoint(x0, y0, x, y, points[pi0], points[pi0 + 1], points[pi1], points[pi1 + 1])
-
-    if (pt !== null) {
-      intersectPoints.push(pt)
-      edgeIndexes.push(i)
-    }
-  }
-
-  if (intersectPoints.length === 0) {
-    return null
-  }
-
-  if (intersectPoints.length === 1) {
-    return {
-      index: edgeIndexes[0],
-      point: intersectPoints[0],
-    }
-  }
-
-  // Get closest intersection
-  let pt = intersectPoints[0]
-  let minI = 0
-  let minL = len2(x0, y0, pt[0], pt[1])
-
-  for (let i = 1; i < intersectPoints.length; i++) {
-    pt = intersectPoints[i]
-
-    const l = len2(x0, y0, pt[0], pt[1])
-
-    if (l < minL) {
-      minL = l
-      minI = i
-    }
-  }
-
-  return {
-    index: edgeIndexes[minI],
-    point: intersectPoints[minI],
-  }
-}
-
-export const isExistingEdge = (i0: number, i1: number, edges: readonly number[]): boolean => {
-  for (let i = 0; i < edges.length; i += 2) {
-    const ei0 = edges[i]
-    const ei1 = edges[i + 1]
-
-    if ((i0 === ei0 && i1 === ei1) || (i0 === ei1 && i1 === ei0)) {
-      return true
-    }
-  }
-
-  return false
-}
-
-export const isExistingLoopEdge = (pi0: number, pi1: number, pointsLength: number): boolean => {
-  return pi0 < pointsLength && pi1 < pointsLength && (pi0 + 2 === pi1 || pi1 + 2 === pi0)
-}
-
-const discardEdge = (edgeIndex: number, indices: number[]) => {
-  for (let i = edgeIndex + 2; i < indices.length; i += 2) {
-    indices[i - 2] = indices[i]
-    indices[i - 1] = indices[i + 1]
-  }
-
-  indices.length = indices.length - 2
-}
-const discardEdges = (indices: number[], edgeIndexes: readonly number[]) => {
-  // Mark discarded edges with -1
-  for (let i = 0;i < edgeIndexes.length; i++) {
-    indices[edgeIndexes[i]] = -1
-  }
-
-  for (let i = 0, len = indices.length; i < len; i += 2) {
-    if (indices[i] === -1) {
-      discardEdge(i, indices)
-      i -= 2
-      len -= 2
-    }
-  }
-}
 const getNumDiscardedIndexesLessThan = (edgeIndex: number, discardedIndexes: readonly number[]): number => {
   let res = 0
 
@@ -418,103 +159,166 @@ const getNumDiscardedIndexesLessThan = (edgeIndex: number, discardedIndexes: rea
 //   return pi1 - pi0 < 0
 // }
 
-const isMiddleOutsideLoop = (edgeIndex: number, indices: readonly number[], points: readonly number[]) => {
-  const ei0 = indices[edgeIndex]
-  const ei1 = indices[edgeIndex + 1]
+// export const getPointOutsideBB = (aabb: readonly number[]): [number, number] => {
+//   return [aabb[4] + 100, aabb[5] + 100]
+// }
 
-  if (isPointInsideLoop(
-    (points[ei0] + points[ei1]) / 2,
-    (points[ei0 + 1] + points[ei1 + 1]) / 2,
-    points
-  )) {
-    return false
-  }
-  // console.log('OUTSIDE', `${ei0}->${ei1}`)
+// export const isLoopInverted = (points: readonly number[]) => {
+//   const aabb = getLoopAABB(points)
+//   const [x, y] = getPointOutsideBB(aabb)
 
-  return true
-}
+//   return isPointInsideLoop(x, y, points)
+// }
 
-const doesIntersectLoop = (edgeIndex: number, indices: readonly number[], points: readonly number[], pointsLength: number): boolean => {
-  const p0 = indices[edgeIndex]
-  const p1 = indices[edgeIndex + 1]
-  const x0 = points[p0]
-  const y0 = points[p0 + 1]
-  const x1 = points[p1]
-  const y1 = points[p1 + 1]
+export class Points {
+  _points: number[] = []
+  _loopLength: number = 0
+  _edges: number[] = []
 
-  if (isMiddleOutsideLoop(edgeIndex, indices, points)) {
-    return true
+  get numLoopPoints() {
+    return this._loopLength / 2
   }
 
-  for (let pi = 0; pi < pointsLength; pi += 2) {
-    const pii = (pi + 2) % pointsLength
-
-    if (pi !== p0 && pi !== p1 && pii !== p0 && pii !== p1 && isIntersecting(x0, y0, x1, y1, points[pi], points[pi + 1], points[pii], points[pii + 1])) {
-      // console.log('INTER', `${ei0}->${ei1}`, `${pi}->${npi}`)
-
-      return true
-    }
+  get numPoints() {
+    return this._points.length / 2
   }
 
-  return false
-}
+  get numEdges() {
+    return this._edges.length / 2
+  }
 
-export const calcEdges = (points: readonly number[], pointsLength: number): number[] => {
-  const indices: number[] = []
+  get pointsFlatArray(): readonly number[] {
+    return this._points
+  }
 
-  const discardLongerEdges = (edgeIndex: number, /* out */discardedEdgeIndexes: number[]) => {
-    discardedEdgeIndexes.length = 0
+  get edgesFlatArray(): readonly number[] {
+    return this._edges
+  }
 
-    const pi0 = indices[edgeIndex]
-    const pi1 = indices[edgeIndex + 1]
-    const x0 = points[pi0]
-    const y0 = points[pi0 + 1]
-    const x1 = points[pi1]
-    const y1 = points[pi1 + 1]
-    const len = len2(x0, y0, x1, y1)
+  reset() {
+    this._points.length = 0
+    this._edges.length = 0
+    this._loopLength = 0
+  }
 
-    // console.log(`----- ${pi0 / 2}->${pi1 / 2}`)
+  validate() {
+    const points: readonly number[] = this._points
+    const edges: readonly number[] = this._edges
 
-    for (let i = 0; i < indices.length; i += 2) {
-      if (i === edgeIndex) {
-        continue
-      }
-
-      const i0 = indices[i]
-      const i1 = indices[i + 1]
-
-      // console.log(`  CHECK ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
-
-      if (
-        pi0 !== i0 &&
-        pi0 !== i1 &&
-        pi1 !== i0 &&
-        pi1 !== i1 &&
-        isIntersecting(x0, y0, x1, y1, points[i0], points[i0 + 1], points[i1], points[i1 + 1])
-      ) {
-        // console.log(`    INTER ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
-
-        if (len2(points[i0], points[i0 + 1], points[i1], points[i1 + 1]) < len) {
-          // Is not shorter
-          // console.log('  DISCARD SOURCE')
-          discardedEdgeIndexes.length = 0
-          discardedEdgeIndexes.push(edgeIndex)
-
-          return
-        }
-
-        // Is shorter
-        discardedEdgeIndexes.push(i)
+    for (let i = 0; i < points.length; i++) {
+      if (points[i] === null) {
+        console.error('POINTS_ERROR')
+        console.log(points)
       }
     }
 
-    // console.log('  DISCARD COMPARANTS')
+    for (let i = 0; i < edges.length; i += 2) {
+      if (edges[i] === edges[i + 1]) {
+        console.error('EDGES_ERROR')
+        console.log(edges)
+      }
+    }
   }
 
-  const isSameEdgeButReversed = (i0: number, i1: number): boolean => {
-    for (let e = 0; e < indices.length; e += 2) {
-      // Same edge exists, but reversed
-      if (indices[e] === i1 && indices[e + 1] === i0) {
+  isPointInsideLoop(x: number, y: number) {
+    const points = this.pointsFlatArray
+    const loopLength = this._loopLength
+    let x0 = points[loopLength - 2]
+    let y0 = points[loopLength - 1]
+    let x1
+    let y1
+    let inside = false
+
+    for (let i = 0; i < loopLength; i += 2) {
+      x1 = points[i]
+      y1 = points[i + 1]
+
+      if (((y1 > y) !== (y0 > y)) && (x < (x0 - x1) * (y - y1) / (y0 - y1) + x1)) {
+        inside = !inside
+      }
+
+      x0 = x1
+      y0 = y1
+    }
+
+    return inside
+  }
+
+  findLoopEdgeNearby(x: number, y: number, dist = 8): number | null {
+    if (this.numLoopPoints < 3) {
+      return null
+    }
+
+    const points = this.pointsFlatArray
+    const loopLength = this._loopLength
+
+    let prevI = loopLength - 2
+    let lp0x = points[prevI]
+    let lp0y = points[prevI + 1]
+    let index = 0
+    let min = Infinity
+
+    for (let i = 0; i < loopLength; i += 2) {
+      const lp1x = points[i]
+      const lp1y = points[i + 1]
+
+      const d = distToSegment2(x, y, lp0x, lp0y, lp1x, lp1y)
+
+      if (d < min) {
+        index = prevI
+        min = d
+      }
+
+      prevI = i
+      lp0x = lp1x
+      lp0y = lp1y
+    }
+
+    if (min < dist * dist) {
+      return index / 2
+    }
+
+    return null
+  }
+
+  findEdgeNearby(x: number, y: number, dist = 8): number | null {
+    const points = this.pointsFlatArray
+    const edges = this.edgesFlatArray
+    let index = 0
+    let min = Infinity
+
+    for (let i = 0; i < edges.length; i += 2) {
+      const p0x = points[edges[i]]
+      const p0y = points[edges[i] + 1]
+      const p1x = points[edges[i + 1]]
+      const p1y = points[edges[i + 1] + 1]
+
+      const d = distToSegment2(x, y, p0x, p0y, p1x, p1y)
+
+      if (d < min) {
+        index = i
+        min = d
+      }
+    }
+
+    if (min < dist * dist) {
+      return index / 2
+    }
+
+    return null
+  }
+
+  isExistingEdge(p0: number, p1: number): boolean {
+    const edges = this.edgesFlatArray
+
+    p0 *= 2
+    p1 *= 2
+
+    for (let i = 0; i < edges.length; i += 2) {
+      const ei0 = edges[i]
+      const ei1 = edges[i + 1]
+
+      if ((p0 === ei0 && p1 === ei1) || (p0 === ei1 && p1 === ei0)) {
         return true
       }
     }
@@ -522,85 +326,497 @@ export const calcEdges = (points: readonly number[], pointsLength: number): numb
     return false
   }
 
-  // Generate edges
-  for (let i = 0; i < pointsLength; i += 2) {
+  isExistingLoopEdge(pi0: number, pi1: number): boolean {
+    const numLoopPoints = this.numLoopPoints
+
+    return pi0 < numLoopPoints && pi1 < numLoopPoints &&
+     ((pi0 + 1) % numLoopPoints === pi1 || (pi1 + 1) % numLoopPoints === pi0)
+  }
+
+  private discardEdge(edges: number[], edgeIndex: number) {
+    for (let i = edgeIndex + 2; i < edges.length; i += 2) {
+      edges[i - 2] = edges[i]
+      edges[i - 1] = edges[i + 1]
+    }
+
+    edges.length = edges.length - 2
+  }
+
+  private discardEdges(edges: number[], edgeIndexes: readonly number[]) {
+    // Mark discarded edges with -1
+    for (let i = 0;i < edgeIndexes.length; i++) {
+      edges[edgeIndexes[i]] = -1
+    }
+
+    for (let i = 0, len = edges.length; i < len; i += 2) {
+      if (edges[i] === -1) {
+        this.discardEdge(edges, i)
+        i -= 2
+        len -= 2
+      }
+    }
+  }
+
+  private isMiddleOutsideLoop(flatEdgeIndex: number) {
+    const edges: readonly number[] = this._edges
+    const points: readonly number[] = this._points
+    const ei0 = edges[flatEdgeIndex]
+    const ei1 = edges[flatEdgeIndex + 1]
+
+    return this.isPointInsideLoop(
+      (points[ei0] + points[ei1]) / 2,
+      (points[ei0 + 1] + points[ei1 + 1]) / 2
+    )
+  }
+
+  private doesIntersectLoop(flatEdgeIndex: number): boolean {
+    if (this.isMiddleOutsideLoop(flatEdgeIndex)) {
+      return true
+    }
+
+    const edges = this.edgesFlatArray
+    const points = this.pointsFlatArray
+    const loopLength = this._loopLength
+    const p0 = edges[flatEdgeIndex]
+    const p1 = edges[flatEdgeIndex + 1]
+    const x0 = points[p0]
+    const y0 = points[p0 + 1]
+    const x1 = points[p1]
+    const y1 = points[p1 + 1]
+    let pii = loopLength - 2
+
+    for (let pi = 0; pi < loopLength; pi += 2) {
+      if (pi !== p0 && pi !== p1 && pii !== p0 && pii !== p1 &&
+        isIntersecting(x0, y0, x1, y1, points[pi], points[pi + 1], points[pii], points[pii + 1])) {
+        return true
+      }
+
+      pii = pi
+    }
+
+    return false
+  }
+
+  calcEdges() {
+    const points = this.pointsFlatArray
+    const loopLength = this._loopLength
+    const indices: number[] = []
+
+    const discardLongerEdges = (edgeIndex: number, /* out */discardedEdgeIndexes: number[]) => {
+      discardedEdgeIndexes.length = 0
+
+      const pi0 = indices[edgeIndex]
+      const pi1 = indices[edgeIndex + 1]
+      const x0 = points[pi0]
+      const y0 = points[pi0 + 1]
+      const x1 = points[pi1]
+      const y1 = points[pi1 + 1]
+      const len = len2(x0, y0, x1, y1)
+
+      // console.log(`----- ${pi0 / 2}->${pi1 / 2}`)
+
+      for (let i = 0; i < indices.length; i += 2) {
+        if (i === edgeIndex) {
+          continue
+        }
+
+        const i0 = this._edges[i]
+        const i1 = this._edges[i + 1]
+
+        // console.log(`  CHECK ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
+
+        if (
+          pi0 !== i0 &&
+        pi0 !== i1 &&
+        pi1 !== i0 &&
+        pi1 !== i1 &&
+        isIntersecting(x0, y0, x1, y1, points[i0], points[i0 + 1], points[i1], points[i1 + 1])
+        ) {
+        // console.log(`    INTER ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
+
+          if (len2(points[i0], points[i0 + 1], points[i1], points[i1 + 1]) < len) {
+          // Is not shorter
+          // console.log('  DISCARD SOURCE')
+            discardedEdgeIndexes.length = 0
+            discardedEdgeIndexes.push(edgeIndex)
+
+            return
+          }
+
+          // Is shorter
+          discardedEdgeIndexes.push(i)
+        }
+      }
+
+    // console.log('  DISCARD COMPARANTS')
+    }
+
+    const isSameEdgeButReversed = (i0: number, i1: number): boolean => {
+      for (let e = 0; e < indices.length; e += 2) {
+      // Same edge exists, but reversed
+        if (indices[e] === i1 && indices[e + 1] === i0) {
+          return true
+        }
+      }
+
+      return false
+    }
+
+    // Generate edges
+    for (let i = 0; i < loopLength; i += 2) {
     // console.log('------------------ I:', i)
 
-    for (let k = (i + 4) % pointsLength; k !== (i - 2 + pointsLength) % pointsLength; k = ((k + 2) % pointsLength)) {
+      for (let k = (i + 4) % loopLength; k !== (i - 2 + loopLength) % loopLength; k = ((k + 2) % loopLength)) {
       // console.log(i, '->', k)
 
-      // Same edge exists, but reversed
-      if (isSameEdgeButReversed(i, k)) {
+        // Same edge exists, but reversed
+        if (isSameEdgeButReversed(i, k)) {
         // console.log('SAME REVERSED')
+          continue
+        }
+
+        indices.push(i, k)
+      }
+    }
+
+    const tempNumbers: number[] = []
+
+    for (let i = 0, len = indices.length; i < len; i += 2) {
+      if (this.doesIntersectLoop(i)) {
+        this.discardEdge(indices, i)
+        i -= 2
+        len -= 2
+
         continue
       }
 
-      indices.push(i, k)
-    }
-  }
+      //New edge intersects others
+      discardLongerEdges(i, tempNumbers)
 
-  const tempNumbers: number[] = []
-
-  for (let i = 0, len = indices.length; i < len; i += 2) {
-    if (doesIntersectLoop(i, indices, points)) {
-      discardEdge(i, indices)
-      i -= 2
-      len -= 2
-
-      continue
-    }
-
-    //New edge intersects others
-    discardLongerEdges(i, tempNumbers)
-
-    if (tempNumbers.length > 0) {
+      if (tempNumbers.length > 0) {
       // console.log('LONGER EDGES', `${indices[i]} -> ${indices[i + 1]}`, tempNumbers.map((i) => `${indices[i]} -> ${indices[i + 1]}`))
-      discardEdges(indices, tempNumbers)
-      i -= 2 * getNumDiscardedIndexesLessThan(i, tempNumbers)
-      len -= 2 * tempNumbers.length
+        this.discardEdges(indices, tempNumbers)
+        i -= 2 * getNumDiscardedIndexesLessThan(i, tempNumbers)
+        len -= 2 * tempNumbers.length
 
-      continue
+        continue
+      }
     }
   }
 
-  return indices
-}
+  findIntersectionWithEdge(x: number, y: number, basePointIndex: number): {point: [number, number], index: number} | null {
+    const bpi = basePointIndex * 2
+    const points = this.pointsFlatArray
+    const edges = this.edgesFlatArray
 
-export const getLoopAABB = (points: readonly number[], pointsLength: number): number[] => {
-  let minX = points[0]
-  let minY = points[1]
-  let maxX = minX
-  let maxY = minY
+    const x0 = points[bpi]
+    const y0 = points[bpi + 1]
 
-  for (let i = 2; i < pointsLength; i += 2) {
-    const ptx = points[i]
-    const pty = points[i + 1]
+    const flatEdgeIndexes: number[] = []
+    const intersectPoints: [number, number][] = []
 
-    minX = Math.min(minX, ptx)
-    maxX = Math.max(maxX, ptx)
-    minY = Math.min(minY, pty)
-    maxY = Math.max(maxY, pty)
+    // Collect edge intersections
+    for (let i = 0; i < edges.length; i += 2) {
+      const pi0 = edges[i]
+      const pi1 = edges[i + 1]
+
+      if (pi0 === bpi || pi1 === bpi) {
+        continue
+      }
+
+      const pt = getSegmentIntersectionPoint(x0, y0, x, y, points[pi0], points[pi0 + 1], points[pi1], points[pi1 + 1])
+
+      if (pt !== null) {
+        intersectPoints.push(pt)
+        flatEdgeIndexes.push(i)
+      }
+    }
+
+    if (intersectPoints.length === 0) {
+      return null
+    }
+
+    if (intersectPoints.length === 1) {
+      return {
+        index: flatEdgeIndexes[0],
+        point: intersectPoints[0],
+      }
+    }
+
+    // Get closest intersection
+    let pt = intersectPoints[0]
+    let minI = 0
+    let minL = len2(x0, y0, pt[0], pt[1])
+
+    for (let i = 1; i < intersectPoints.length; i++) {
+      pt = intersectPoints[i]
+
+      const l = len2(x0, y0, pt[0], pt[1])
+
+      if (l < minL) {
+        minL = l
+        minI = i
+      }
+    }
+
+    return {
+      index: flatEdgeIndexes[minI] / 2,
+      point: intersectPoints[minI],
+    }
   }
 
-  return [
-    minX,
-    minY,
-    maxX,
-    minY,
-    maxX,
-    maxY,
-    minX,
-    maxY,
-  ]
-}
+  findIntersectionWithLoop(x: number, y: number, basePointIndex: number): {point: [number, number], index: number} | null {
+    if (this.numLoopPoints < 3) {
+      return null
+    }
 
-export const getPointOutsideBB = (aabb: readonly number[]): [number, number] => {
-  return [aabb[4] + 100, aabb[5] + 100]
-}
+    const bpi = basePointIndex * 2
+    const points = this.pointsFlatArray
+    const loopLength = this._loopLength
 
-export const isLoopInverted = (points: readonly number[]) => {
-  const aabb = getLoopAABB(points)
-  const [x, y] = getPointOutsideBB(aabb)
+    const x0 = points[bpi]
+    const y0 = points[bpi + 1]
+    let prevI = loopLength - 2
+    let lp0x = points[prevI]
+    let lp0y = points[prevI + 1]
 
-  return isPointInsideLoop(x, y, points)
+    const flatPointIndexes: number[] = []
+    const intersectPoints: [number, number][] = []
+
+    // Collect loop intersections
+    for (let i = 0; i < loopLength; i += 2) {
+      const lp1x = points[i]
+      const lp1y = points[i + 1]
+
+      if (i === bpi && prevI === bpi) {
+        const pt = getSegmentIntersectionPoint(x0, y0, x, y, lp0x, lp0y, lp1x, lp1y)
+
+        if (pt !== null) {
+          intersectPoints.push(pt)
+          flatPointIndexes.push(prevI)
+        }
+      }
+
+      prevI = i
+      lp0x = lp1x
+      lp0y = lp1y
+    }
+
+    if (intersectPoints.length === 0) {
+      return null
+    }
+
+    if (intersectPoints.length === 1) {
+      return {
+        index: flatPointIndexes[0] / 2,
+        point: intersectPoints[0],
+      }
+    }
+
+    // Get closest intersection
+    let pt = intersectPoints[0]
+    let minI = 0
+    let minL = len2(x0, y0, pt[0], pt[1])
+
+    for (let i = 1; i < intersectPoints.length; i++) {
+      pt = intersectPoints[i]
+
+      const l = len2(x0, y0, pt[0], pt[1])
+
+      if (l < minL) {
+        minL = l
+        minI = i
+      }
+    }
+
+    return {
+      index: minI / 2,
+      point: intersectPoints[minI],
+    }
+  }
+
+  getEdgePointIndexes(edgeIndex: number): [number, number] {
+    const edges: readonly number[] = this._edges
+    const ei = edgeIndex * 2
+
+    return [edges[ei] / 2, edges[ei + 1] / 2]
+  }
+
+  getLoopAABB(): number[] {
+    let minX = this._points[0]
+    let minY = this._points[1]
+    let maxX = minX
+    let maxY = minY
+
+    for (let i = 2; i < this._loopLength; i += 2) {
+      const ptx = this._points[i]
+      const pty = this._points[i + 1]
+
+      minX = Math.min(minX, ptx)
+      maxX = Math.max(maxX, ptx)
+      minY = Math.min(minY, pty)
+      maxY = Math.max(maxY, pty)
+    }
+
+    return [
+      minX,
+      minY,
+      maxX,
+      minY,
+      maxX,
+      maxY,
+      minX,
+      maxY,
+    ]
+  }
+
+  isAnyPointNearbyEdge(basePointIndex: number, targetPointIndex: number, dist = 8): boolean {
+    const points = this.pointsFlatArray
+    const dist2 = dist * dist
+    const bpi = basePointIndex * 2
+    const tpi = targetPointIndex * 2
+    const bx = points[bpi]
+    const by = points[bpi + 1]
+    const tx = points[tpi]
+    const ty = points[tpi + 1]
+
+    for (let i = 0; i < points.length; i += 2) {
+      if (i === bpi || i === tpi) {
+        continue
+      }
+
+      const d = distToSegment2(points[i], points[i + 1], tx, ty, bx, by)
+
+      if (d < dist2) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  isAnyPointNearbyNewEdge(x: number, y: number, basePointIndex: number, dist = 8): boolean {
+    const points = this.pointsFlatArray
+    const dist2 = dist * dist
+    const bpi = basePointIndex * 2
+    const bx = points[bpi]
+    const by = points[bpi + 1]
+
+    for (let i = 0; i < points.length; i += 2) {
+      if (i === bpi) {
+        continue
+      }
+
+      const d = distToSegment2(points[i], points[i + 1], x, y, bx, by)
+
+      if (d < dist2) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  findPointNearby(x: number, y: number, dist = 8): number | null {
+    const points: readonly number[] = this._points
+    const dist2 = dist * dist
+
+    for (let i = 0; i < points.length; i += 2) {
+      if (len2(x, y, points[i], points[i + 1]) < dist2) {
+        return i
+      }
+    }
+
+    return null
+  }
+
+  projToLoop(x: number, y: number, afterLoopPointIndex: number): [number, number] {
+    const points = this._points
+    const pi = afterLoopPointIndex * 2
+    const pin = (pi + 2) % this._loopLength
+
+    return projToLine(x, y, points[pi], points[pi + 1], points[pin], points[pin + 1])
+  }
+
+  projToEdge(x: number, y: number, edgeIndex: number): [number, number] {
+    const points: readonly number[] = this._points
+    const edges: readonly number[] = this._edges
+    const ei = edgeIndex * 2
+    const epi0 = edges[ei]
+    const epi1 = edges[ei + 1]
+
+    return projToLine(x, y, points[epi0], points[epi0] + 1, points[epi1], points[epi1] + 1)
+  }
+
+  insertPointIntoLoop(x: number, y: number, afterPointIndex: number): number {
+    // Check num points is low
+    if (this.numLoopPoints <= 1) {
+      this.addLoopPoint(x, y)
+
+      return this.numPoints - 1
+    }
+
+    const pi = Math.min(afterPointIndex * 2, this._loopLength)
+    const npi = (pi + 2) % this._loopLength
+
+    this._points.splice(npi, 0, x, y)
+    this._loopLength += 2
+
+    // Fix edge indexes
+    const edges = this._edges
+
+    for (let i = 0; i < edges.length; i++) {
+      if (edges[i] > pi) {
+        edges[i] += 2
+      }
+    }
+
+    return npi / 2
+  }
+
+  insertPointIntoEdge(x: number, y: number, edgeIndex: number): number {
+    const ei = edgeIndex * 2
+    const epi0 = this._edges[ei]
+    const epi1 = this._edges[ei + 1]
+    const epi2 = this._points.length
+
+    this._points.push(x, y)
+    this._edges.splice(edgeIndex, 2, epi0, epi2, epi2, epi1)
+
+    return epi2 / 2
+  }
+
+  addEdge(p0: number, p1: number) {
+    this._edges.push(p0, p1)
+  }
+
+  // TODO fix indexing
+  addLoopPoint(x: number, y: number) {
+    if (this._points.length > this._loopLength) {
+      return
+    }
+
+    this._points.push(x, y)
+    this._loopLength += 2
+  }
+
+  addPoint(x: number, y: number) {
+    this._points.push(x, y)
+  }
+
+  serialize(): string {
+    return JSON.stringify({
+      points: this._points,
+      edges: this._edges,
+      loopLength: this._loopLength,
+    })
+  }
+
+  deserialize(data: string) {
+    const { points, edges, loopLength } = JSON.parse(data)
+
+    this._points = points
+    this._edges = edges
+    this._loopLength = loopLength
+  }
 }

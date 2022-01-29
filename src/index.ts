@@ -9,6 +9,7 @@ const rand = (int: number) => int + Math.random()
 
 const createLoopBtn = document.getElementById('create-loop')!
 const createEdgeBtn = document.getElementById('create-edge')!
+const createMeshBtn = document.getElementById('create-mesh')!
 const saveStateBtn = document.getElementById('save-state')!
 const loadStateBtn = document.getElementById('load-state')!
 const addStateBtn = document.getElementById('add-state')!
@@ -20,13 +21,13 @@ bg.height = HEIGHT
 fg.width = WIDTH
 fg.height = HEIGHT
 
-const DEFAULT_MODE = 0
+const BEGIN_MODE = 0
 const CREATE_LOOP_MODE = 1
 const CREATE_EDGE_MODE = 2
 
 const drawBg = new Draw(bg.getContext('2d')!)
 const drawFg = new Draw(fg.getContext('2d')!)
-let mode = DEFAULT_MODE
+let mode = BEGIN_MODE
 
 const state: Points = new Points()
 let lpi = -1
@@ -57,6 +58,7 @@ const render = () => {
   drawFg.clearRect(0, 0, WIDTH, HEIGHT)
   drawBg.clearRect(0, 0, WIDTH, HEIGHT)
 
+  drawBg.drawMesh(state)
   drawBg.drawLoop(state, mode !== CREATE_LOOP_MODE)
   drawBg.drawEdges(state)
   drawBg.drawPoints(state)
@@ -78,13 +80,6 @@ const renderInteractiveLine = (x0: number, y0: number) => {
 
 const handleMouseMove = (e: MouseEvent) => {
   renderInteractiveLine(e.clientX, e.clientY)
-}
-
-const recalc = () => {
-  // if (points.length > 3) {
-  //   edges.length = 0
-  //   edges.push(...calcEdges(points))
-  // }
 }
 
 const addLoopPoint = (x: number, y: number) => {
@@ -422,13 +417,16 @@ const setCreateEdgeEnabled = (isEnabled: boolean) => {
 
   if (isEnabled) {
     mode = CREATE_EDGE_MODE
+    state.clearMesh()
     createEdgeBtn.setAttribute('active', '')
     createLoopBtn.setAttribute('disabled', '')
+    createMeshBtn.setAttribute('disabled', '')
     fg.addEventListener('mousemove', handleMouseMove)
   } else {
-    mode = DEFAULT_MODE
+    mode = BEGIN_MODE
     createEdgeBtn.removeAttribute('active')
     createLoopBtn.removeAttribute('disabled')
+    createMeshBtn.removeAttribute('disabled')
     fg.removeEventListener('mousemove', handleMouseMove)
   }
 
@@ -445,21 +443,28 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     resetState()
     createLoopBtn.setAttribute('active', '')
     createEdgeBtn.setAttribute('disabled', '')
+    createMeshBtn.setAttribute('disabled', '')
   } else {
-    mode = DEFAULT_MODE
+    mode = BEGIN_MODE
     createLoopBtn.removeAttribute('active')
     createEdgeBtn.removeAttribute('disabled')
+    createMeshBtn.removeAttribute('disabled')
   }
 
   render()
 }
 
 createLoopBtn.addEventListener('click', () => {
-  setCreateLoopEnabled(mode === DEFAULT_MODE)
+  setCreateLoopEnabled(mode === BEGIN_MODE)
 })
 
 createEdgeBtn.addEventListener('click', () => {
-  setCreateEdgeEnabled(mode === DEFAULT_MODE)
+  setCreateEdgeEnabled(mode === BEGIN_MODE)
+})
+
+createMeshBtn.addEventListener('click', () => {
+  state.calcEdges()
+  render()
 })
 
 fg.addEventListener('click', (e) => {

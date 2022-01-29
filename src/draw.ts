@@ -4,6 +4,7 @@ export class Draw {
   ctx: CanvasRenderingContext2D
   pointColor = 'black'
   edgeColor = 'rgba(0, 0, 0, 0.4)'
+  meshColor = 'rgba(255, 128, 0, 0.4)'
   loopColor = 'red'
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx
@@ -13,6 +14,10 @@ export class Draw {
     const ctx = this.ctx
     const points = state.pointsFlatArray
     const loopLength = state.numLoopPoints * 2
+
+    if (loopLength === 0) {
+      return
+    }
 
     ctx.save()
     ctx.strokeStyle = this.loopColor
@@ -36,8 +41,41 @@ export class Draw {
     const points = state.pointsFlatArray
     const edges = state.edgesFlatArray
 
+    if (edges.length === 0) {
+      return
+    }
+
     ctx.save()
     ctx.strokeStyle = this.edgeColor
+
+    ctx.beginPath()
+
+    for (let i = 0; i < edges.length; i += 2) {
+      const pi0 = edges[i]
+      const pi1 = edges[i + 1]
+      const p0x = points[pi0]
+      const p0y = points[pi0 + 1]
+      const p1x = points[pi1]
+      const p1y = points[pi1 + 1]
+
+      ctx.moveTo(p0x, p0y)
+      ctx.lineTo(p1x, p1y)
+    }
+
+    ctx.stroke()
+  }
+
+  drawMesh(state: Points) {
+    const ctx = this.ctx
+    const points = state.pointsFlatArray
+    const edges = state.meshEdgesFlatArray
+
+    if (edges.length === 0) {
+      return
+    }
+
+    ctx.save()
+    ctx.strokeStyle = this.meshColor
 
     ctx.beginPath()
 

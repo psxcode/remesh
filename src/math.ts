@@ -192,6 +192,7 @@ export class Points {
   _points: number[] = []
   _loopLength: number = 0
   _edges: number[] = []
+  _meshEdges: number[] = []
 
   get numLoopPoints() {
     return this._loopLength / 2
@@ -213,10 +214,19 @@ export class Points {
     return this._edges
   }
 
+  get meshEdgesFlatArray(): readonly number[] {
+    return this._meshEdges
+  }
+
   reset() {
     this._points.length = 0
     this._edges.length = 0
+    this._meshEdges.length = 0
     this._loopLength = 0
+  }
+
+  clearMesh() {
+    this._meshEdges.length = 0
   }
 
   validate() {
@@ -238,7 +248,7 @@ export class Points {
     }
   }
 
-  isPointInsideLoop(x: number, y: number) {
+  isPointInsideLoop(x: number, y: number): boolean {
     const points = this.pointsFlatArray
     const loopLength = this._loopLength
     let x0 = points[loopLength - 2]
@@ -360,10 +370,10 @@ export class Points {
     edges.length = edges.length - 2
   }
 
-  private discardEdges(edges: number[], edgeIndexes: readonly number[]) {
+  private discardEdges(edges: number[], discardIndexes: readonly number[]) {
     // Mark discarded edges with -1
-    for (let i = 0;i < edgeIndexes.length; i++) {
-      edges[edgeIndexes[i]] = -1
+    for (let i = 0;i < discardIndexes.length; i++) {
+      edges[discardIndexes[i]] = -1
     }
 
     for (let i = 0, len = edges.length; i < len; i += 2) {
@@ -375,28 +385,44 @@ export class Points {
     }
   }
 
-  private isMiddleOutsideLoop(flatEdgeIndex: number) {
-    const edges: readonly number[] = this._edges
+  private isMiddleOutsideLoop(p0: number, p1: number) {
     const points: readonly number[] = this._points
-    const ei0 = edges[flatEdgeIndex]
-    const ei1 = edges[flatEdgeIndex + 1]
 
-    return this.isPointInsideLoop(
-      (points[ei0] + points[ei1]) / 2,
-      (points[ei0 + 1] + points[ei1 + 1]) / 2
+    return !this.isPointInsideLoop(
+      (points[p0] + points[p1]) / 2,
+      (points[p0 + 1] + points[p1 + 1]) / 2
     )
   }
 
-  private doesIntersectLoop(flatEdgeIndex: number): boolean {
-    if (this.isMiddleOutsideLoop(flatEdgeIndex)) {
+  private doesIntersectEdge(p0: number, p1: number): boolean {
+    const points = this.pointsFlatArray
+    const edges = this.edgesFlatArray
+    const x0 = points[p0]
+    const y0 = points[p0 + 1]
+    const x1 = points[p1]
+    const y1 = points[p1 + 1]
+
+    for (let i = 0; i < edges.length; i += 2) {
+      const p2 = edges[i]
+      const p3 = edges[i + 1]
+
+      if (p0 !== p2 && p0 !== p3 && p1 !== p2 && p1 !== p3 &&
+        isIntersecting(x0, y0, x1, y1, points[p2], points[p2 + 1], points[p3], points[p3 + 1])
+      ) {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  private doesIntersectLoop(p0: number, p1: number): boolean {
+    if (this.isMiddleOutsideLoop(p0, p1)) {
       return true
     }
 
-    const edges = this.edgesFlatArray
     const points = this.pointsFlatArray
     const loopLength = this._loopLength
-    const p0 = edges[flatEdgeIndex]
-    const p1 = edges[flatEdgeIndex + 1]
     const x0 = points[p0]
     const y0 = points[p0 + 1]
     const x1 = points[p1]
@@ -416,15 +442,17 @@ export class Points {
   }
 
   calcEdges() {
+    this.clearMesh()
+
     const points = this.pointsFlatArray
     const loopLength = this._loopLength
-    const indices: number[] = []
+    const indices = this._meshEdges
 
-    const discardLongerEdges = (edgeIndex: number, /* out */discardedEdgeIndexes: number[]) => {
+    const discardLongerEdges = (flatEdgeIndex: number, /* out */discardedEdgeIndexes: number[]) => {
       discardedEdgeIndexes.length = 0
 
-      const pi0 = indices[edgeIndex]
-      const pi1 = indices[edgeIndex + 1]
+      const pi0 = indices[flatEdgeIndex]
+      const pi1 = indices[flatEdgeIndex + 1]
       const x0 = points[pi0]
       const y0 = points[pi0 + 1]
       const x1 = points[pi1]
@@ -434,21 +462,21 @@ export class Points {
       // console.log(`----- ${pi0 / 2}->${pi1 / 2}`)
 
       for (let i = 0; i < indices.length; i += 2) {
-        if (i === edgeIndex) {
+        if (i === flatEdgeIndex) {
           continue
         }
 
-        const i0 = this._edges[i]
-        const i1 = this._edges[i + 1]
+        const i0 = indices[i]
+        const i1 = indices[i + 1]
 
         // console.log(`  CHECK ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
 
         if (
           pi0 !== i0 &&
-        pi0 !== i1 &&
-        pi1 !== i0 &&
-        pi1 !== i1 &&
-        isIntersecting(x0, y0, x1, y1, points[i0], points[i0 + 1], points[i1], points[i1 + 1])
+          pi0 !== i1 &&
+          pi1 !== i0 &&
+          pi1 !== i1 &&
+          isIntersecting(x0, y0, x1, y1, points[i0], points[i0 + 1], points[i1], points[i1 + 1])
         ) {
         // console.log(`    INTER ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
 
@@ -456,7 +484,7 @@ export class Points {
           // Is not shorter
           // console.log('  DISCARD SOURCE')
             discardedEdgeIndexes.length = 0
-            discardedEdgeIndexes.push(edgeIndex)
+            discardedEdgeIndexes.push(flatEdgeIndex)
 
             return
           }
@@ -482,14 +510,65 @@ export class Points {
 
     // Generate edges
     for (let i = 0; i < loopLength; i += 2) {
-    // console.log('------------------ I:', i)
-
       for (let k = (i + 4) % loopLength; k !== (i - 2 + loopLength) % loopLength; k = ((k + 2) % loopLength)) {
-      // console.log(i, '->', k)
-
-        // Same edge exists, but reversed
         if (isSameEdgeButReversed(i, k)) {
-        // console.log('SAME REVERSED')
+          continue
+        }
+
+        if (this.doesIntersectLoop(i, k)) {
+          continue
+        }
+
+        if (this.doesIntersectEdge(i, k)) {
+          continue
+        }
+
+        indices.push(i, k)
+      }
+    }
+
+    // Generate edges to constraints
+    for (let i = 0; i < loopLength; i += 2) {
+      for (let k = loopLength; k < points.length; k += 2) {
+        if (isSameEdgeButReversed(i, k)) {
+          continue
+        }
+
+        if (this.isExistingEdge(i / 2, k / 2)) {
+          continue
+        }
+
+        if (this.doesIntersectLoop(i, k)) {
+          continue
+        }
+
+        if (this.doesIntersectEdge(i, k)) {
+          continue
+        }
+
+        indices.push(i, k)
+      }
+    }
+
+    for (let i = loopLength; i < points.length; i += 2) {
+      for (let k = loopLength; k < points.length; k += 2) {
+        if (i === k) {
+          continue
+        }
+
+        if (isSameEdgeButReversed(i, k)) {
+          continue
+        }
+
+        if (this.isExistingEdge(i / 2, k / 2)) {
+          continue
+        }
+
+        if (this.doesIntersectLoop(i, k)) {
+          continue
+        }
+
+        if (this.doesIntersectEdge(i, k)) {
           continue
         }
 
@@ -500,15 +579,6 @@ export class Points {
     const tempNumbers: number[] = []
 
     for (let i = 0, len = indices.length; i < len; i += 2) {
-      if (this.doesIntersectLoop(i)) {
-        this.discardEdge(indices, i)
-        i -= 2
-        len -= 2
-
-        continue
-      }
-
-      //New edge intersects others
       discardLongerEdges(i, tempNumbers)
 
       if (tempNumbers.length > 0) {
@@ -516,8 +586,6 @@ export class Points {
         this.discardEdges(indices, tempNumbers)
         i -= 2 * getNumDiscardedIndexesLessThan(i, tempNumbers)
         len -= 2 * tempNumbers.length
-
-        continue
       }
     }
   }
@@ -889,5 +957,6 @@ export class Points {
     this._points = points
     this._edges = edges
     this._loopLength = loopLength
+    this.clearMesh()
   }
 }

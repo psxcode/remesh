@@ -4,7 +4,7 @@ import { Points } from './math'
 
 const WIDTH = 640
 const HEIGHT = 480
-const VERT_SNAP_DIST = 16
+const VERT_SNAP_DIST = 8
 const rand = (int: number) => int + Math.random()
 
 const createLoopBtn = document.getElementById('create-loop')!
@@ -68,8 +68,9 @@ const renderInteractiveLine = (x0: number, y0: number) => {
   }
 
   const points = state.pointsFlatArray
-  const x1 = points[lpi]
-  const y1 = points[lpi + 1]
+  const pi = lpi * 2
+  const x1 = points[pi]
+  const y1 = points[pi + 1]
 
   drawFg.clearRect(0, 0, WIDTH, HEIGHT)
   drawFg.drawInteractiveLine(x0, y0, x1, y1)
@@ -179,12 +180,13 @@ const addConstraintPoint = (x: number, y: number) => {
       console.log('  EDGE_INTERSECT', printEdge(ix.index))
 
       const { point: [px, py], index } = ix
-      const pin = state.findPointNearby(px, py, VERT_SNAP_DIST)
+      const pin = state.findPointOnEdgeNearby(px, py, index, VERT_SNAP_DIST)
 
       if (pin !== null) {
         console.log('    POINT_NEARBY', printPoint(pin))
 
         if (
+          lpi === pin ||
           state.isExistingEdge(lpi, pin) ||
           state.isExistingLoopEdge(lpi, pin) ||
           state.isAnyPointNearbyEdge(lpi, pin)
@@ -225,12 +227,13 @@ const addConstraintPoint = (x: number, y: number) => {
       console.log('  INTERSECT_LOOP', printLoopEdge(ix.index))
 
       const { point: [px, py], index } = ix
-      const pin = state.findPointNearby(px, py, VERT_SNAP_DIST)
+      const pin = state.findPointOnLoopNearby(px, py, index, VERT_SNAP_DIST)
 
       if (pin !== null) {
         console.log('    POINT_NEARBY', printPoint(pin))
 
         if (
+          lpi === pin ||
           state.isExistingEdge(lpi, pin) ||
           state.isExistingLoopEdge(lpi, pin) ||
           state.isAnyPointNearbyEdge(lpi, pin)
@@ -274,6 +277,7 @@ const addConstraintPoint = (x: number, y: number) => {
       console.log('  POINT_NEARBY', printPoint(pin))
 
       if (
+        lpi === pin ||
         state.isExistingLoopEdge(lpi, pin) ||
         state.isExistingEdge(lpi, pin) ||
         state.isAnyPointNearbyEdge(lpi, pin)
@@ -297,16 +301,14 @@ const addConstraintPoint = (x: number, y: number) => {
     if (ein !== null) {
       console.log('  EDGE_NEARBY', printEdge(ein))
 
-      const [epi0, epi1] = state.getEdgePointIndexes(ein)
-
-      if (lpi === epi0 || lpi === epi1) {
+      if (state.doesPointBelongToEdge(ein, lpi)) {
         console.log('    SAME_EDGE')
 
         return
       }
 
       const [px, py] = state.projToEdge(x, y, ein)
-      const pin = state.findPointNearby(px, py, VERT_SNAP_DIST)
+      const pin = state.findPointOnEdgeNearby(px, py, ein, VERT_SNAP_DIST)
 
       if (pin !== null) {
         console.log('    POINT_NEARBY', printPoint(pin))
@@ -351,7 +353,7 @@ const addConstraintPoint = (x: number, y: number) => {
       console.log('  LOOP_NEARBY', printLoopEdge(ein))
 
       const [px, py] = state.projToLoop(x, y, ein)
-      const pin = state.findPointNearby(px, py, VERT_SNAP_DIST)
+      const pin = state.findPointOnLoopNearby(px, py, ein, VERT_SNAP_DIST)
 
       if (pin !== null) {
         console.log('    POINT_NEARBY', printPoint(pin))

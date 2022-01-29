@@ -139,6 +139,24 @@ const getSegmentIntersectionPoint = (a0x: number, a0y: number, a1x: number, a1y:
 //   return false
 // }
 
+const isPointInSegmentABBB = (x: number, y: number, x0: number, y0: number, x1: number, y1: number): boolean => {
+  if (x0 > x1) {
+    const t = x0
+
+    x0 = x1
+    x1 = t
+  }
+
+  if (y0 > y1) {
+    const t = y0
+
+    y0 = y1
+    y1 = t
+  }
+
+  return x0 < x && x < x1 && y0 < y && y < y1
+}
+
 const getNumDiscardedIndexesLessThan = (edgeIndex: number, discardedIndexes: readonly number[]): number => {
   let res = 0
 
@@ -538,7 +556,7 @@ export class Points {
 
     if (intersectPoints.length === 1) {
       return {
-        index: flatEdgeIndexes[0],
+        index: flatEdgeIndexes[0] / 2,
         point: intersectPoints[0],
       }
     }
@@ -588,7 +606,7 @@ export class Points {
       const lp1x = points[i]
       const lp1y = points[i + 1]
 
-      if (i === bpi && prevI === bpi) {
+      if (i !== bpi && prevI !== bpi) {
         const pt = getSegmentIntersectionPoint(x0, y0, x, y, lp0x, lp0y, lp1x, lp1y)
 
         if (pt !== null) {
@@ -635,11 +653,15 @@ export class Points {
     }
   }
 
-  getEdgePointIndexes(edgeIndex: number): [number, number] {
+  doesPointBelongToEdge(edgeIndex: number, pointIndex: number): boolean {
     const edges: readonly number[] = this._edges
     const ei = edgeIndex * 2
 
-    return [edges[ei] / 2, edges[ei + 1] / 2]
+    return pointIndex === edges[ei] / 2 || pointIndex === edges[ei + 1] / 2
+  }
+
+  doesPointBelongToLoopEdge(edgeIndex: number, pointIndex: number): boolean {
+    return edgeIndex === pointIndex || (edgeIndex + 1) % this.numLoopPoints === pointIndex
   }
 
   getLoopAABB(): number[] {
@@ -685,7 +707,14 @@ export class Points {
         continue
       }
 
-      const d = distToSegment2(points[i], points[i + 1], tx, ty, bx, by)
+      const x = points[i]
+      const y = points[i + 1]
+
+      if (!isPointInSegmentABBB(x, y, tx, ty, bx, by)) {
+        continue
+      }
+
+      const d = distToSegment2(x, y, tx, ty, bx, by)
 
       if (d < dist2) {
         return true
@@ -695,7 +724,7 @@ export class Points {
     return false
   }
 
-  isAnyPointNearbyNewEdge(x: number, y: number, basePointIndex: number, dist = 8): boolean {
+  isAnyPointNearbyNewEdge(tx: number, ty: number, basePointIndex: number, dist = 8): boolean {
     const points = this.pointsFlatArray
     const dist2 = dist * dist
     const bpi = basePointIndex * 2
@@ -707,7 +736,14 @@ export class Points {
         continue
       }
 
-      const d = distToSegment2(points[i], points[i + 1], x, y, bx, by)
+      const x = points[i]
+      const y = points[i + 1]
+
+      if (!isPointInSegmentABBB(x, y, tx, ty, bx, by)) {
+        continue
+      }
+
+      const d = distToSegment2(x, y, tx, ty, bx, by)
 
       if (d < dist2) {
         return true
@@ -717,13 +753,49 @@ export class Points {
     return false
   }
 
+  findPointOnEdgeNearby(x: number, y: number, edgeIndex: number, dist = 8): number | null {
+    const points = this.pointsFlatArray
+    const edges = this.edgesFlatArray
+    const ei = edgeIndex * 2
+    const pi0 = edges[ei]
+    const pi1 = edges[ei + 1]
+    const dist2 = dist * dist
+
+    if (len2(x, y, points[pi0], points[pi0 + 1]) < dist2) {
+      return pi0 / 2
+    }
+
+    if (len2(x, y, points[pi1], points[pi1 + 1]) < dist2) {
+      return pi1 / 2
+    }
+
+    return null
+  }
+
+  findPointOnLoopNearby(x: number, y: number, loopEdgeIndex: number, dist = 8): number | null {
+    const points = this.pointsFlatArray
+    const pi0 = loopEdgeIndex * 2
+    const pi1 = (pi0 + 2) % this._loopLength
+    const dist2 = dist * dist
+
+    if (len2(x, y, points[pi0], points[pi0 + 1]) < dist2) {
+      return pi0 / 2
+    }
+
+    if (len2(x, y, points[pi1], points[pi1 + 1]) < dist2) {
+      return pi1 / 2
+    }
+
+    return null
+  }
+
   findPointNearby(x: number, y: number, dist = 8): number | null {
     const points: readonly number[] = this._points
     const dist2 = dist * dist
 
     for (let i = 0; i < points.length; i += 2) {
       if (len2(x, y, points[i], points[i + 1]) < dist2) {
-        return i
+        return i / 2
       }
     }
 
@@ -757,9 +829,8 @@ export class Points {
     }
 
     const pi = Math.min(afterPointIndex * 2, this._loopLength)
-    const npi = (pi + 2) % this._loopLength
 
-    this._points.splice(npi, 0, x, y)
+    this._points.splice(pi + 2, 0, x, y)
     this._loopLength += 2
 
     // Fix edge indexes
@@ -771,7 +842,7 @@ export class Points {
       }
     }
 
-    return npi / 2
+    return (pi + 2) / 2
   }
 
   insertPointIntoEdge(x: number, y: number, edgeIndex: number): number {
@@ -781,13 +852,13 @@ export class Points {
     const epi2 = this._points.length
 
     this._points.push(x, y)
-    this._edges.splice(edgeIndex, 2, epi0, epi2, epi2, epi1)
+    this._edges.splice(ei, 2, epi0, epi2, epi2, epi1)
 
     return epi2 / 2
   }
 
   addEdge(p0: number, p1: number) {
-    this._edges.push(p0, p1)
+    this._edges.push(p0 * 2, p1 * 2)
   }
 
   // TODO fix indexing

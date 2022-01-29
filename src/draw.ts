@@ -3,7 +3,7 @@ import type { Points } from './math'
 export class Draw {
   ctx: CanvasRenderingContext2D
   pointColor = 'black'
-  edgeColor = 'black'
+  edgeColor = 'rgba(0, 0, 0, 0.4)'
   loopColor = 'red'
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx

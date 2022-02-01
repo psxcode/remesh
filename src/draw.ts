@@ -101,7 +101,9 @@ export class Draw {
     ctx.save()
     ctx.fillStyle = this.pointColor
 
-    for (let i = 0; i < points.length; i += 2) {
+    ctx.fillRect(points[0] - 4, points[0 + 1] - 4, 8, 8)
+
+    for (let i = 2; i < points.length; i += 2) {
       ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)
     }
 

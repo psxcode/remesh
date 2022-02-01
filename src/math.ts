@@ -157,18 +157,6 @@ const isPointInSegmentABBB = (x: number, y: number, x0: number, y0: number, x1: 
   return x0 < x && x < x1 && y0 < y && y < y1
 }
 
-const getNumDiscardedIndexesLessThan = (edgeIndex: number, discardedIndexes: readonly number[]): number => {
-  let res = 0
-
-  for (let i = 0; i < discardedIndexes.length; i++) {
-    if (discardedIndexes[i] <= edgeIndex) {
-      ++res
-    }
-  }
-
-  return res
-}
-
 // const isShortestPathRight = (pi0: number, pi1: number, loopLength: number): boolean => {
 //   if (Math.abs(pi1 - pi0) < Math.abs(loopLength - pi1 + pi0)) {
 //     return pi1 - pi0 >= 0
@@ -204,6 +192,10 @@ export class Points {
 
   get numEdges() {
     return this._edges.length / 2
+  }
+
+  get numMeshEdges() {
+    return this._meshEdges.length / 2
   }
 
   get pointsFlatArray(): readonly number[] {
@@ -448,7 +440,7 @@ export class Points {
     const loopLength = this._loopLength
     const indices = this._meshEdges
 
-    const discardLongerEdges = (flatEdgeIndex: number, /* out */discardedEdgeIndexes: number[]) => {
+    const discardLongerEdges = (flatEdgeIndex: number, /* out */discardedEdgeIndexes: number[]): number | null => {
       discardedEdgeIndexes.length = 0
 
       const pi0 = indices[flatEdgeIndex]
@@ -459,34 +451,30 @@ export class Points {
       const y1 = points[pi1 + 1]
       const len = len2(x0, y0, x1, y1)
 
-      // console.log(`----- ${pi0 / 2}->${pi1 / 2}`)
+      // console.log(`BEGIN: ${pi0 / 2}->${pi1 / 2}`)
 
       for (let i = 0; i < indices.length; i += 2) {
-        if (i === flatEdgeIndex) {
+        const i0 = indices[i]
+        const i1 = indices[i + 1]
+        const tx0 = points[i0]
+        const ty0 = points[i0 + 1]
+        const tx1 = points[i1]
+        const ty1 = points[i1 + 1]
+
+        if (pi0 === i0 || pi0 === i1 || pi1 === i0 || pi1 === i1) {
           continue
         }
 
-        const i0 = indices[i]
-        const i1 = indices[i + 1]
+        // console.log(`  CHECK ${i0 / 2}->${i1 / 2}`)
 
-        // console.log(`  CHECK ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
+        if (isIntersecting(x0, y0, x1, y1, tx0, ty0, tx1, ty1)) {
+          // console.log(`    INTER ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
 
-        if (
-          pi0 !== i0 &&
-          pi0 !== i1 &&
-          pi1 !== i0 &&
-          pi1 !== i1 &&
-          isIntersecting(x0, y0, x1, y1, points[i0], points[i0 + 1], points[i1], points[i1 + 1])
-        ) {
-        // console.log(`    INTER ${pi0 / 2}->${pi1 / 2} vs ${i0 / 2}->${i1 / 2}`)
+          if (len2(tx0, ty0, tx1, ty1) < len) {
+            // Is not shorter
+            // console.log('  DISCARD SOURCE')
 
-          if (len2(points[i0], points[i0 + 1], points[i1], points[i1 + 1]) < len) {
-          // Is not shorter
-          // console.log('  DISCARD SOURCE')
-            discardedEdgeIndexes.length = 0
-            discardedEdgeIndexes.push(flatEdgeIndex)
-
-            return
+            return i
           }
 
           // Is shorter
@@ -494,7 +482,9 @@ export class Points {
         }
       }
 
-    // console.log('  DISCARD COMPARANTS')
+      // console.log('  DISCARD COMPARANTS')
+
+      return null
     }
 
     const isSameEdgeButReversed = (i0: number, i1: number): boolean => {
@@ -578,15 +568,28 @@ export class Points {
 
     const tempNumbers: number[] = []
 
-    for (let i = 0, len = indices.length; i < len; i += 2) {
-      discardLongerEdges(i, tempNumbers)
+    for (let i = 0, len = indices.length; i < len;) {
+      const shorterEdgeIndex = discardLongerEdges(i, tempNumbers)
+
+      if (shorterEdgeIndex !== null) {
+        const t0 = indices[i]
+        const t1 = indices[i + 1]
+
+        indices[i] = indices[shorterEdgeIndex]
+        indices[i + 1] = indices[shorterEdgeIndex + 1]
+        indices[shorterEdgeIndex] = t0
+        indices[shorterEdgeIndex + 1] = t1
+
+        continue
+      }
 
       if (tempNumbers.length > 0) {
-      // console.log('LONGER EDGES', `${indices[i]} -> ${indices[i + 1]}`, tempNumbers.map((i) => `${indices[i]} -> ${indices[i + 1]}`))
+        // console.log('LONGER EDGES', `${indices[i] / 2} -> ${indices[i + 1] / 2}`, tempNumbers.map((i) => `${indices[i] / 2} -> ${indices[i + 1] / 2}`))
         this.discardEdges(indices, tempNumbers)
-        i -= 2 * getNumDiscardedIndexesLessThan(i, tempNumbers)
         len -= 2 * tempNumbers.length
       }
+
+      i += 2
     }
   }
 

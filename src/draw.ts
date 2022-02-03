@@ -13,25 +13,29 @@ export class Draw {
   drawLoop(state: Points, shouldClosePath: boolean) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
-    const loopLength = state.numLoopPoints * 2
 
-    if (loopLength === 0) {
+    if (state.getNumLoopPoints(0) === 0) {
       return
     }
 
     ctx.save()
     ctx.strokeStyle = this.loopColor
 
-    ctx.beginPath()
+    for (let i = 0; i < state.numLoops; i++) {
+      const loopStart = state.getNumLoopPoints(i - 1)
+      const loopEnd = state.getNumLoopPoints(i)
 
-    ctx.moveTo(points[0], points[1])
+      ctx.beginPath()
 
-    for (let i = 2; i < loopLength; i += 2) {
-      ctx.lineTo(points[i], points[i + 1])
+      ctx.moveTo(points[loopStart], points[loopStart + 1])
+
+      for (let i = loopStart + 2; i < loopEnd; i += 2) {
+        ctx.lineTo(points[i], points[i + 1])
+      }
+
+      shouldClosePath && ctx.closePath()
+      ctx.stroke()
     }
-
-    shouldClosePath && ctx.closePath()
-    ctx.stroke()
 
     ctx.restore()
   }

@@ -10,6 +10,7 @@
   <style>
     body {
       margin: 0;
+      font-family: sans-serif;
     }
     button[active] {
       background-color: green;
@@ -63,15 +64,35 @@
       right: 5px;
     }
 
+    #view {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      font-size: 10px;
+    }
+
   </style>
   <div id="screen">
     <canvas id="bg" width="640" height="480"></canvas>
     <canvas id="fg" width="640" height="480"></canvas>
   </div>
   <div id="creation">
+    <button id="reset">Reset</button>
     <button id="create-loop">Create Loop</button>
     <button id="create-edge">Create Edge</button>
     <button id="create-mesh">Create Mesh</button>
+  </div>
+  <div id="view">
+    <label>
+      <input id="view-loop" type="checkbox" checked>
+      View Loop
+    </label>
+    <label>
+      <input id="view-edges" type="checkbox" checked>
+      View Edges
+    </label>
   </div>
   <div>
     <button id="save-state">Save state</button>

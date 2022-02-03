@@ -13,6 +13,8 @@ const createMeshBtn = document.getElementById('create-mesh')!
 const saveStateBtn = document.getElementById('save-state')!
 const loadStateBtn = document.getElementById('load-state')!
 const addStateBtn = document.getElementById('add-state')!
+const viewLoopCheckbox = document.getElementById('view-loop')! as HTMLInputElement
+const viewEdgesCheckbox = document.getElementById('view-edges')! as HTMLInputElement
 const bg = document.getElementById('bg') as HTMLCanvasElement
 const fg = document.getElementById('fg') as HTMLCanvasElement
 
@@ -23,7 +25,8 @@ fg.height = HEIGHT
 
 const BEGIN_MODE = 0
 const CREATE_LOOP_MODE = 1
-const CREATE_EDGE_MODE = 2
+const CREATE_ILOOP_MODE = 2
+const CREATE_EDGE_MODE = 3
 
 const drawBg = new Draw(bg.getContext('2d')!)
 const drawFg = new Draw(fg.getContext('2d')!)
@@ -35,7 +38,7 @@ let lpi = -1
 let stored: { [id: string]: string } = {}
 
 const resetState = () => {
-  state.reset()
+  state.clearAll()
   lpi = -1
 }
 
@@ -59,8 +62,15 @@ const render = () => {
   drawBg.clearRect(0, 0, WIDTH, HEIGHT)
 
   drawBg.drawMesh(state)
-  drawBg.drawLoop(state, mode !== CREATE_LOOP_MODE)
-  drawBg.drawEdges(state)
+
+  if (viewLoopCheckbox.checked) {
+    drawBg.drawLoop(state, mode !== CREATE_LOOP_MODE)
+  }
+
+  if (viewEdgesCheckbox.checked) {
+    drawBg.drawEdges(state)
+  }
+
   drawBg.drawPoints(state)
 }
 
@@ -154,7 +164,7 @@ const addConstraintPoint = (x: number, y: number) => {
     if (state.isPointInsideLoop(x, y)) {
       // console.log('  GOOD_POINT')
       lpi = state.numPoints
-      state.addPoint(x, y)
+      state.addEdgePoint(x, y)
 
       return
     }
@@ -175,7 +185,7 @@ const addConstraintPoint = (x: number, y: number) => {
       // console.log('  EDGE_INTERSECT', printEdge(ix.index))
 
       const { point: [px, py], index } = ix
-      const pin = state.findPointOnEdgeNearby(px, py, index, VERT_SNAP_DIST)
+      const pin = state.findPointNearbyOnEdge(px, py, index, VERT_SNAP_DIST)
 
       if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -222,7 +232,7 @@ const addConstraintPoint = (x: number, y: number) => {
       // console.log('  INTERSECT_LOOP', printLoopEdge(ix.index))
 
       const { point: [px, py], index } = ix
-      const pin = state.findPointOnLoopNearby(px, py, index, VERT_SNAP_DIST)
+      const pin = state.findPointNearbyOnLoop(px, py, index, VERT_SNAP_DIST)
 
       if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -303,7 +313,7 @@ const addConstraintPoint = (x: number, y: number) => {
       }
 
       const [px, py] = state.projToEdge(x, y, ein)
-      const pin = state.findPointOnEdgeNearby(px, py, ein, VERT_SNAP_DIST)
+      const pin = state.findPointNearbyOnEdge(px, py, ein, VERT_SNAP_DIST)
 
       if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -348,7 +358,7 @@ const addConstraintPoint = (x: number, y: number) => {
       // console.log('  LOOP_NEARBY', printLoopEdge(ein))
 
       const [px, py] = state.projToLoop(x, y, ein)
-      const pin = state.findPointOnLoopNearby(px, py, ein, VERT_SNAP_DIST)
+      const pin = state.findPointNearbyOnLoop(px, py, ein, VERT_SNAP_DIST)
 
       if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -400,7 +410,7 @@ const addConstraintPoint = (x: number, y: number) => {
 
     state.addEdge(lpi, state.numPoints)
     lpi = state.numPoints
-    state.addPoint(x, y)
+    state.addEdgePoint(x, y)
   }
 
   // console.log('  OUTSIDE_LOOP')
@@ -461,11 +471,14 @@ createEdgeBtn.addEventListener('click', () => {
 })
 
 createMeshBtn.addEventListener('click', () => {
-  state.calcEdges()
+  state.generateMesh()
   console.log('NUM_EDGES:', state.numEdges)
   console.log('NUM_MESH:', state.numMeshEdges)
   render()
 })
+
+viewEdgesCheckbox.addEventListener('change', render)
+viewLoopCheckbox.addEventListener('change', render)
 
 fg.addEventListener('click', (e) => {
   const x = rand(e.clientX)

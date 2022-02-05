@@ -190,6 +190,13 @@ export class Points {
     return this._loopLength[this._loopLength.length - 1] / 2
   }
 
+  get numLastLoopPoints() {
+    const loopBegin = this._loopLength.length <= 1 ? 0 : this._loopLength[this._loopLength.length - 2]
+    const loopEnd = this._loopLength[this._loopLength.length - 1]
+
+    return (loopEnd - loopBegin) / 2
+  }
+
   get numPoints() {
     return this._points.length / 2
   }
@@ -223,9 +230,8 @@ export class Points {
   }
 
   clearAll() {
+    this.clearEdges()
     this._points.length = 0
-    this._edges.length = 0
-    this._meshEdges.length = 0
     this._loopLength = [0]
   }
 
@@ -234,8 +240,17 @@ export class Points {
   }
 
   clearEdges() {
+    this.clearMesh()
     this._edges.length = 0
-    this._points.length = this.numLoopPoints * 2
+    this._points.length = this._loopLength[this._loopLength.length - 1]
+  }
+
+  clearLastLoop() {
+    this.clearMesh()
+    this.clearEdges()
+
+    this._loopLength.length -= 1
+    this._points.length = this._loopLength.length === 0 ? 0 : this._loopLength[this._loopLength.length - 1]
   }
 
   validate() {
@@ -297,6 +312,21 @@ export class Points {
     return true
   }
 
+  isNewLoopPointInsideOtherLoops(x: number, y: number): boolean {
+    if (!this._isPointInsideLoop(x, y, 0)) {
+      return false
+    }
+
+    for (let i = 1; i < this._loopLength.length - 1; i++) {
+      // Note inverted test for inner loops
+      if (this._isPointInsideLoop(x, y, i)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
   private _findLoopEdgeNearby(x: number, y: number, loopIndex: number, dist: number): number | null {
     const points = this.pointsFlatArray
     const loopStart = loopIndex === 0 ? 0 : this._loopLength[loopIndex - 1]
@@ -305,8 +335,7 @@ export class Points {
     let prevI = loopEnd - 2
     let lp0x = points[prevI]
     let lp0y = points[prevI + 1]
-    let index = 0
-    let min = Number.POSITIVE_INFINITY
+    const nearbyMinDist = dist * dist
 
     for (let i = loopStart; i < loopEnd; i += 2) {
       const lp1x = points[i]
@@ -314,18 +343,13 @@ export class Points {
 
       const d = distToSegment2(x, y, lp0x, lp0y, lp1x, lp1y)
 
-      if (d < min) {
-        index = prevI
-        min = d
+      if (d < nearbyMinDist) {
+        return prevI / 2
       }
 
       prevI = i
       lp0x = lp1x
       lp0y = lp1y
-    }
-
-    if (min < dist * dist) {
-      return index / 2
     }
 
     return null
@@ -430,6 +454,31 @@ export class Points {
       (points[p0] + points[p1]) / 2,
       (points[p0 + 1] + points[p1 + 1]) / 2
     )
+  }
+
+  doesNewLoopEdgeIntersectOtherLoops(x: number, y: number, basePointIndex: number): boolean {
+    const points = this.pointsFlatArray
+    const bpi = basePointIndex * 2
+    const x0 = points[bpi]
+    const y0 = points[bpi + 1]
+
+    for (let li = 0; li < this._loopLength.length - 1; li++) {
+      const loopStart = li === 0 ? 0 : this._loopLength[li - 1]
+      const loopEnd = this._loopLength[li]
+
+      let pii = loopEnd - 2
+
+      for (let pi = loopStart; pi < loopEnd; pi += 2) {
+        if (pi !== bpi && pii !== bpi &&
+        isIntersecting(x0, y0, x, y, points[pi], points[pi + 1], points[pii], points[pii + 1])) {
+          return true
+        }
+
+        pii = pi
+      }
+    }
+
+    return false
   }
 
   private doesIntersectEdge(p0: number, p1: number): boolean {
@@ -573,6 +622,7 @@ export class Points {
         indices.push(i, k)
       }
 
+      // Main loop to inner loops points
       for (let k = mainLoopLength; k < firstPointIndexAfterLoops; k += 2) {
         if (this.isExistingEdge(i / 2, k / 2)) {
           continue
@@ -590,7 +640,34 @@ export class Points {
       }
     }
 
-    // Generate edges to constraints
+    // Inner loops to Inner loops
+    for (let i = mainLoopLength; i < firstPointIndexAfterLoops; i += 2) {
+      for (let k = mainLoopLength; k < firstPointIndexAfterLoops; k += 2) {
+        if (i === k) {
+          continue
+        }
+
+        if (isSameEdgeButReversed(i, k)) {
+          continue
+        }
+
+        if (this.isExistingEdge(i / 2, k / 2)) {
+          continue
+        }
+
+        if (this.doesIntersectLoop(i, k)) {
+          continue
+        }
+
+        if (this.doesIntersectEdge(i, k)) {
+          continue
+        }
+
+        indices.push(i, k)
+      }
+    }
+
+    // Generate loop points to constraints points
     for (let i = 0; i < firstPointIndexAfterLoops; i += 2) {
       for (let k = firstPointIndexAfterLoops; k < points.length; k += 2) {
         if (isSameEdgeButReversed(i, k)) {
@@ -762,7 +839,7 @@ export class Points {
             const ixLen = len2(bx, by, pt[0], pt[1])
 
             if (ixLen < distToX) {
-              xEdgeIndex = ptIndex
+              xEdgeIndex = prevPtIndex
               distToX = ixLen
               xPoint = pt
             }
@@ -934,23 +1011,27 @@ export class Points {
     return null
   }
 
-  private getLoopIndex(pointIndex: number): number {
+  private getLoopIndex(flatPointIndex: number): number {
     for (let i = 0; i < this._loopLength.length; i++) {
-      if (pointIndex < this._loopLength[i]) {
+      if (flatPointIndex < this._loopLength[i]) {
         return i
       }
     }
 
-    throw new Error(`getLoopIndex: pointIndex:${pointIndex}, numLoopPoints:${this.numLoopPoints}`)
+    throw new Error(`getLoopIndex: pointIndex:${flatPointIndex / 2}, numLoopPoints:${this.numLoopPoints}`)
   }
 
-  private wrapLoopIndex(baseIndex: number, offset: number): number {
-    const li = this.getLoopIndex(baseIndex)
+  wrapLoopPointIndex(baseIndex: number, offset: number): number {
+    return this.wrapLoopIndex(baseIndex * 2, offset * 2) / 2
+  }
+
+  private wrapLoopIndex(flatBaseIndex: number, offset: number): number {
+    const li = this.getLoopIndex(flatBaseIndex)
     const loopStart = li === 0 ? 0 : this._loopLength[li - 1]
     const loopEnd = this._loopLength[li]
     const loopDiff = loopEnd - loopStart
 
-    return (baseIndex - loopStart + offset + loopDiff) % loopDiff + loopStart
+    return (flatBaseIndex - loopStart + offset + loopDiff) % loopDiff + loopStart
   }
 
   projToLoop(x: number, y: number, afterLoopPointIndex: number): [number, number] {
@@ -976,21 +1057,16 @@ export class Points {
   }
 
   insertPointIntoLoop(x: number, y: number, afterPointIndex: number): number {
-    // Check num points is low
-    if (this.numLoopPoints <= 2) {
-      throw new Error('Not enough loop points')
+    if (this.numLoopPoints <= 2 || afterPointIndex >= this.numLoopPoints) {
+      throw new Error(`insertPointIntoLoop: afterPoint:${afterPointIndex}, numLoopPoints:${this.numLoopPoints}`)
     }
 
     const pi = afterPointIndex * 2
 
-    if (pi >= this.numLoopPoints) {
-      throw new Error('Inserting after loop points')
-    }
-
     this._points.splice(pi + 2, 0, x, y)
 
     // Fix loops lengthes
-    for (let li = this.getLoopIndex(afterPointIndex); li < this._loopLength.length; li++) {
+    for (let li = this.getLoopIndex(pi); li < this._loopLength.length; li++) {
       this._loopLength[li] += 2
     }
 
@@ -1022,17 +1098,33 @@ export class Points {
     this._edges.push(p0 * 2, p1 * 2)
   }
 
-  addLoopPoint(x: number, y: number) {
+  beginInnerLoop() {
+    if (this._points.length > this.numLoopPoints * 2) {
+      throw new Error(`beginInnerLoop: numPoints:${this._points.length / 2}, numLoopPoints:${this.numLoopPoints}`)
+    }
+
+    if (this.numLastLoopPoints < 3) {
+      throw new Error(`beginInnerLoop: numLastLoopPoints:${this.numLastLoopPoints}, numLoopPoints:${this.numLoopPoints}`)
+    }
+
+    this._loopLength.push(this._loopLength[this._loopLength.length - 1])
+  }
+
+  addLoopPoint(x: number, y: number): number {
     if (this._points.length > this.numLoopPoints * 2) {
       throw new Error(`addLoopPoint: numPoints:${this._points.length / 2}, numLoopPoints:${this.numLoopPoints}`)
     }
 
     this._points.push(x, y)
     this._loopLength[this._loopLength.length - 1] += 2
+
+    return this.numPoints
   }
 
-  addEdgePoint(x: number, y: number) {
+  addEdgePoint(x: number, y: number): number {
     this._points.push(x, y)
+
+    return this.numPoints - 1
   }
 
   serialize(): string {

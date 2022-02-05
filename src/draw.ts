@@ -21,9 +21,10 @@ export class Draw {
     ctx.save()
     ctx.strokeStyle = this.loopColor
 
-    for (let i = 0; i < state.numLoops; i++) {
+    for (let i = 0, numLoops = state.numLoops; i < numLoops; i++) {
       const loopStart = state.getNumLoopPoints(i - 1)
       const loopEnd = state.getNumLoopPoints(i)
+      const isLastLoop = i === numLoops - 1
 
       ctx.beginPath()
 
@@ -33,7 +34,10 @@ export class Draw {
         ctx.lineTo(points[i], points[i + 1])
       }
 
-      shouldClosePath && ctx.closePath()
+      if (!isLastLoop || shouldClosePath) {
+        ctx.closePath()
+      }
+
       ctx.stroke()
     }
 

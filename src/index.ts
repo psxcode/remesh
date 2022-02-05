@@ -7,6 +7,7 @@ const HEIGHT = 480
 const VERT_SNAP_DIST = 8
 const rand = (int: number) => int + Math.random()
 
+const resetBtn = document.getElementById('reset')!
 const createLoopBtn = document.getElementById('create-loop')!
 const createEdgeBtn = document.getElementById('create-edge')!
 const createMeshBtn = document.getElementById('create-mesh')!
@@ -25,7 +26,7 @@ fg.height = HEIGHT
 
 const BEGIN_MODE = 0
 const CREATE_LOOP_MODE = 1
-const CREATE_ILOOP_MODE = 2
+const CREATE_INNER_LOOP_MODE = 2
 const CREATE_EDGE_MODE = 3
 
 const drawBg = new Draw(bg.getContext('2d')!)
@@ -39,7 +40,16 @@ let stored: { [id: string]: string } = {}
 
 const resetState = () => {
   state.clearAll()
+  mode = BEGIN_MODE
   lpi = -1
+
+  createLoopBtn.removeAttribute('disabled')
+  createEdgeBtn.removeAttribute('disabled')
+  createMeshBtn.removeAttribute('disabled')
+
+  createLoopBtn.removeAttribute('active')
+  createEdgeBtn.removeAttribute('active')
+  createMeshBtn.removeAttribute('active')
 }
 
 // const printPoint = (ptIndex: number) => {
@@ -47,7 +57,7 @@ const resetState = () => {
 // }
 
 // const printLoopEdge = (ptIndex: number) => {
-//   return `${ptIndex}->${(ptIndex + 1) % state.numLoopPoints}`
+//   return `${ptIndex}->${state.wrapLoopPointIndex(ptIndex, 1)}`
 // }
 
 // const printEdge = (edgeIndex: number) => {
@@ -64,7 +74,7 @@ const render = () => {
   drawBg.drawMesh(state)
 
   if (viewLoopCheckbox.checked) {
-    drawBg.drawLoop(state, mode !== CREATE_LOOP_MODE)
+    drawBg.drawLoop(state, mode !== CREATE_LOOP_MODE && mode !== CREATE_INNER_LOOP_MODE)
   }
 
   if (viewEdgesCheckbox.checked) {
@@ -99,7 +109,21 @@ const addLoopPoint = (x: number, y: number) => {
     return
   }
 
-  state.addLoopPoint(x, y)
+  if (mode === CREATE_INNER_LOOP_MODE) {
+    if (!state.isNewLoopPointInsideOtherLoops(x, y)) {
+      // console.log('OUTSIDE')
+
+      return
+    }
+
+    if (state.doesNewLoopEdgeIntersectOtherLoops(x, y, lpi)) {
+      // console.log('INTERSECT')
+
+      return
+    }
+  }
+
+  lpi = state.addLoopPoint(x, y)
 }
 
 const addConstraintPoint = (x: number, y: number) => {
@@ -163,8 +187,7 @@ const addConstraintPoint = (x: number, y: number) => {
 
     if (state.isPointInsideLoop(x, y)) {
       // console.log('  GOOD_POINT')
-      lpi = state.numPoints
-      state.addEdgePoint(x, y)
+      lpi = state.addEdgePoint(x, y)
 
       return
     }
@@ -409,23 +432,26 @@ const addConstraintPoint = (x: number, y: number) => {
     }
 
     state.addEdge(lpi, state.numPoints)
-    lpi = state.numPoints
-    state.addEdgePoint(x, y)
+    lpi = state.addEdgePoint(x, y)
+
+    return
   }
 
   // console.log('  OUTSIDE_LOOP')
+
+  void 0
 }
 
 const setCreateEdgeEnabled = (isEnabled: boolean) => {
-  if (isEnabled === (mode === CREATE_EDGE_MODE)) {
+  if (isEnabled === false && mode !== CREATE_EDGE_MODE) {
     return
   }
 
   lpi = -1
 
   if (isEnabled) {
-    mode = CREATE_EDGE_MODE
     state.clearMesh()
+    mode = CREATE_EDGE_MODE
     createEdgeBtn.setAttribute('active', '')
     createLoopBtn.setAttribute('disabled', '')
     createMeshBtn.setAttribute('disabled', '')
@@ -442,17 +468,32 @@ const setCreateEdgeEnabled = (isEnabled: boolean) => {
 }
 
 const setCreateLoopEnabled = (isEnabled: boolean) => {
-  if (isEnabled === (mode === CREATE_LOOP_MODE)) {
+  if (isEnabled === false && mode !== CREATE_LOOP_MODE && mode !== CREATE_INNER_LOOP_MODE) {
     return
   }
 
   if (isEnabled) {
-    mode = CREATE_LOOP_MODE
-    resetState()
+    const isInnerLoop = state.numPoints > 0
+
+    if (isInnerLoop) {
+      state.clearMesh()
+      state.clearEdges()
+      state.beginInnerLoop()
+    } else {
+      state.clearAll()
+    }
+
+    mode = isInnerLoop ? CREATE_INNER_LOOP_MODE : CREATE_LOOP_MODE
+    lpi = -1
+
     createLoopBtn.setAttribute('active', '')
     createEdgeBtn.setAttribute('disabled', '')
     createMeshBtn.setAttribute('disabled', '')
   } else {
+    if (state.numLastLoopPoints <= 2) {
+      state.clearLastLoop()
+    }
+
     mode = BEGIN_MODE
     createLoopBtn.removeAttribute('active')
     createEdgeBtn.removeAttribute('disabled')
@@ -477,6 +518,11 @@ createMeshBtn.addEventListener('click', () => {
   render()
 })
 
+resetBtn.addEventListener('click', () => {
+  resetState()
+  render()
+})
+
 viewEdgesCheckbox.addEventListener('change', render)
 viewLoopCheckbox.addEventListener('change', render)
 
@@ -486,6 +532,7 @@ fg.addEventListener('click', (e) => {
 
   switch (mode) {
     case CREATE_LOOP_MODE:
+    case CREATE_INNER_LOOP_MODE:
       addLoopPoint(x, y)
 
       break

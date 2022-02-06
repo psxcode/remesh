@@ -16,7 +16,7 @@ const len2 = (x0: number, y0: number, x1: number, y1: number): number => {
 //   return cross(x, y, ax, ay, bx, by) < 0
 // }
 
-// const projToSegment = (x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] => {
+// const projToSegment = (x: number, y: number, ax: number, ay: number, bx: number, by: number): Point => {
 //   // Subtract (b - a) and (p - a), to base 2 vectors on (a) point
 //   // Calc dot-product
 //   // Divide result by (b - a) length to get projected (p - a) length
@@ -32,7 +32,7 @@ const len2 = (x0: number, y0: number, x1: number, y1: number): number => {
 //   ]
 // }
 
-export const projToLine = (x: number, y: number, ax: number, ay: number, bx: number, by: number): [number, number] => {
+export const projToLine = (x: number, y: number, ax: number, ay: number, bx: number, by: number): Point => {
   const t = ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / len2(ax, ay, bx, by)
 
   return [
@@ -91,7 +91,7 @@ const isIntersecting = (a0x: number, a0y: number, a1x: number, a1y: number, b0x:
   return true
 }
 
-const getSegmentIntersectionPoint = (a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): [number, number] | null => {
+const getSegmentIntersectionPoint = (a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): Point | null => {
   const v0x = a1x - a0x
   const v0y = a1y - a0y
   const v1x = b1x - b0x
@@ -165,22 +165,20 @@ const isPointInSegmentABBB = (x: number, y: number, x0: number, y0: number, x1: 
 //   return pi1 - pi0 < 0
 // }
 
-// export const getPointOutsideBB = (aabb: readonly number[]): [number, number] => {
+// export const getPointOutsideBB = (aabb: readonly AABB): Point => {
 //   return [aabb[4] + 100, aabb[5] + 100]
 // }
 
-// export const isLoopInverted = (points: readonly number[]) => {
-//   const aabb = getLoopAABB(points)
-//   const [x, y] = getPointOutsideBB(aabb)
-
-//   return isPointInsideLoop(x, y, points)
-// }
+type Point = [number, number]
+type AABB = [number, number, number, number]
+type cAABB = readonly [number, number, number, number]
 
 export class Points {
   _points: number[] = []
   _loopLength: number[] = [0]
   _edges: number[] = []
   _meshEdges: number[] = []
+  _pcloud: number[] = []
 
   get numLoops() {
     return this._loopLength.length
@@ -221,6 +219,10 @@ export class Points {
     return this._meshEdges
   }
 
+  get pcloudFlatArray(): readonly number[] {
+    return this._pcloud
+  }
+
   getNumLoopPoints(loopIndex: number): number {
     if (loopIndex < 0 || loopIndex >= this._loopLength.length) {
       return 0
@@ -231,8 +233,14 @@ export class Points {
 
   clearAll() {
     this.clearEdges()
+    this.clearPCloud()
     this._points.length = 0
     this._loopLength = [0]
+  }
+
+  clearPCloud() {
+    this.clearMesh()
+    this._pcloud.length = 0
   }
 
   clearMesh() {
@@ -247,6 +255,7 @@ export class Points {
 
   clearLastLoop() {
     this.clearMesh()
+    this.clearPCloud()
     this.clearEdges()
 
     this._loopLength.length -= 1
@@ -533,6 +542,42 @@ export class Points {
     return false
   }
 
+  generatePCloud(scale: number) {
+    this.clearPCloud()
+
+    if (!Number.isInteger(scale) || scale <= 0) {
+      return
+    }
+
+    const aabb: cAABB = this.getAABB()
+
+    const loopMinDist = scale * 0.5
+    const edgeMinDist = scale * 0.5
+    const xstep = scale
+    const ystep = scale * 1.777
+    const hystep = ystep * 0.5
+    const xoffset = (aabb[2] - aabb[0]) % xstep / 2
+    const yoffset = (aabb[3] - aabb[1]) % ystep / 2
+
+    for (let x = aabb[0] + xoffset, xi = 0; x < aabb[2]; x += xstep, xi++) {
+      for (let y = aabb[1] + yoffset + (xi % 2) * hystep; y < aabb[3]; y += ystep) {
+        if (!this.isPointInsideLoop(x, y)) {
+          continue
+        }
+
+        if (this.findLoopEdgeNearby(x, y, loopMinDist) !== null) {
+          continue
+        }
+
+        if (this.findEdgeNearby(x, y, edgeMinDist) !== null) {
+          continue
+        }
+
+        this._pcloud.push(x, y)
+      }
+    }
+  }
+
   generateMesh() {
     this.clearMesh()
 
@@ -743,7 +788,7 @@ export class Points {
     }
   }
 
-  findIntersectionWithEdge(x: number, y: number, basePointIndex: number): {point: [number, number], index: number} | null {
+  findIntersectionWithEdge(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
     const bpi = basePointIndex * 2
     const points = this.pointsFlatArray
     const edges = this.edgesFlatArray
@@ -752,7 +797,7 @@ export class Points {
     const y0 = points[bpi + 1]
 
     const flatEdgeIndexes: number[] = []
-    const intersectPoints: [number, number][] = []
+    const intersectPoints: Point[] = []
 
     // Collect edge intersections
     for (let i = 0; i < edges.length; i += 2) {
@@ -804,7 +849,7 @@ export class Points {
     }
   }
 
-  findIntersectionWithLoop(x: number, y: number, basePointIndex: number): {point: [number, number], index: number} | null {
+  findIntersectionWithLoop(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
     if (this.numLoopPoints < 3) {
       return null
     }
@@ -813,7 +858,7 @@ export class Points {
     const points = this.pointsFlatArray
 
     let xEdgeIndex = 0
-    let xPoint: [number, number] | null = null
+    let xPoint: Point | null = null
     let distToX = Number.POSITIVE_INFINITY
 
     const bx = points[bpi]
@@ -873,7 +918,7 @@ export class Points {
     return edgeIndex === pointIndex || (edgeIndex + 1) % this.numLoopPoints === pointIndex
   }
 
-  getLoopAABB(): number[] {
+  getAABB(): AABB {
     let minX = this._points[0]
     let minY = this._points[1]
     let maxX = minX
@@ -893,10 +938,6 @@ export class Points {
       minX,
       minY,
       maxX,
-      minY,
-      maxX,
-      maxY,
-      minX,
       maxY,
     ]
   }
@@ -1034,7 +1075,7 @@ export class Points {
     return (flatBaseIndex - loopStart + offset + loopDiff) % loopDiff + loopStart
   }
 
-  projToLoop(x: number, y: number, afterLoopPointIndex: number): [number, number] {
+  projToLoop(x: number, y: number, afterLoopPointIndex: number): Point {
     if (afterLoopPointIndex >= this.numLoopPoints) {
       throw new Error(`projToLoop: after:${afterLoopPointIndex}, numLoopPoints:${this.numLoopPoints}`)
     }
@@ -1046,7 +1087,7 @@ export class Points {
     return projToLine(x, y, points[pi], points[pi + 1], points[pii], points[pii + 1])
   }
 
-  projToEdge(x: number, y: number, edgeIndex: number): [number, number] {
+  projToEdge(x: number, y: number, edgeIndex: number): Point {
     const points: readonly number[] = this._points
     const edges: readonly number[] = this._edges
     const ei = edgeIndex * 2

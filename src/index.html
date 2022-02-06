@@ -31,7 +31,19 @@
       right: 0;
       top: 20px;
       margin: 0 auto;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 4px;
     }
+    .creation-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .creation-group > input {
+      width: 100%;
+    }
+
     #state-list {
       display: flex;
       flex-wrap: wrap;
@@ -82,6 +94,10 @@
     <button id="reset">Reset</button>
     <button id="create-loop">Create Loop</button>
     <button id="create-edge">Create Edge</button>
+    <div class="creation-group">
+      <button id="create-pcloud">Create PCloud</button>
+      <input id="pcloud-scale" type="range" min="5" max="25" value="12" step="1">
+    </div>
     <button id="create-mesh">Create Mesh</button>
   </div>
   <div id="view">

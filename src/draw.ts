@@ -102,6 +102,24 @@ export class Draw {
     ctx.stroke()
   }
 
+  drawPCloud(state: Points) {
+    const ctx = this.ctx
+    const points = state.pcloudFlatArray
+
+    if (points.length === 0) {
+      return
+    }
+
+    ctx.save()
+    ctx.fillStyle = this.pointColor
+
+    for (let i = 0; i < points.length; i += 2) {
+      ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
+    }
+
+    ctx.restore()
+  }
+
   drawPoints(state: Points) {
     const ctx = this.ctx
     const points = state.pointsFlatArray

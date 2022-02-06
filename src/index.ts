@@ -11,9 +11,11 @@ const resetBtn = document.getElementById('reset')!
 const createLoopBtn = document.getElementById('create-loop')!
 const createEdgeBtn = document.getElementById('create-edge')!
 const createMeshBtn = document.getElementById('create-mesh')!
+const createPCloudBtn = document.getElementById('create-pcloud')!
 const saveStateBtn = document.getElementById('save-state')!
 const loadStateBtn = document.getElementById('load-state')!
 const addStateBtn = document.getElementById('add-state')!
+const pcloudScale = document.getElementById('pcloud-scale')! as HTMLInputElement
 const viewLoopCheckbox = document.getElementById('view-loop')! as HTMLInputElement
 const viewEdgesCheckbox = document.getElementById('view-edges')! as HTMLInputElement
 const bg = document.getElementById('bg') as HTMLCanvasElement
@@ -46,10 +48,10 @@ const resetState = () => {
   createLoopBtn.removeAttribute('disabled')
   createEdgeBtn.removeAttribute('disabled')
   createMeshBtn.removeAttribute('disabled')
+  createPCloudBtn.removeAttribute('disabled')
 
   createLoopBtn.removeAttribute('active')
   createEdgeBtn.removeAttribute('active')
-  createMeshBtn.removeAttribute('active')
 }
 
 // const printPoint = (ptIndex: number) => {
@@ -81,6 +83,7 @@ const render = () => {
     drawBg.drawEdges(state)
   }
 
+  drawBg.drawPCloud(state)
   drawBg.drawPoints(state)
 }
 
@@ -455,12 +458,14 @@ const setCreateEdgeEnabled = (isEnabled: boolean) => {
     createEdgeBtn.setAttribute('active', '')
     createLoopBtn.setAttribute('disabled', '')
     createMeshBtn.setAttribute('disabled', '')
+    createPCloudBtn.setAttribute('disabled', '')
     fg.addEventListener('mousemove', handleMouseMove)
   } else {
     mode = BEGIN_MODE
     createEdgeBtn.removeAttribute('active')
     createLoopBtn.removeAttribute('disabled')
     createMeshBtn.removeAttribute('disabled')
+    createPCloudBtn.removeAttribute('disabled')
     fg.removeEventListener('mousemove', handleMouseMove)
   }
 
@@ -489,6 +494,7 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     createLoopBtn.setAttribute('active', '')
     createEdgeBtn.setAttribute('disabled', '')
     createMeshBtn.setAttribute('disabled', '')
+    createPCloudBtn.setAttribute('disabled', '')
     fg.addEventListener('mousemove', handleMouseMove)
   } else {
     if (state.numLastLoopPoints <= 2) {
@@ -499,6 +505,7 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     createLoopBtn.removeAttribute('active')
     createEdgeBtn.removeAttribute('disabled')
     createMeshBtn.removeAttribute('disabled')
+    createPCloudBtn.removeAttribute('disabled')
     fg.removeEventListener('mousemove', handleMouseMove)
   }
 
@@ -517,6 +524,17 @@ createMeshBtn.addEventListener('click', () => {
   state.generateMesh()
   console.log('NUM_EDGES:', state.numEdges)
   console.log('NUM_MESH:', state.numMeshEdges)
+  render()
+})
+
+createPCloudBtn.addEventListener('click', () => {
+  const scale = Number(pcloudScale.value)
+
+  if (!Number.isInteger(scale)) {
+    return
+  }
+
+  state.generatePCloud(scale)
   render()
 })
 

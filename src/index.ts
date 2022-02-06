@@ -30,6 +30,7 @@ const BEGIN_MODE = 0
 const CREATE_LOOP_MODE = 1
 const CREATE_INNER_LOOP_MODE = 2
 const CREATE_EDGE_MODE = 3
+const DRAG_POINT_MODE = 4
 
 const drawBg = new Draw(bg.getContext('2d')!)
 const drawFg = new Draw(fg.getContext('2d')!)
@@ -101,7 +102,7 @@ const renderInteractiveLine = (x0: number, y0: number) => {
   drawFg.drawInteractiveLine(x0, y0, x1, y1)
 }
 
-const handleMouseMove = (e: MouseEvent) => {
+const handleInteractiveLine = (e: MouseEvent) => {
   renderInteractiveLine(e.clientX, e.clientY)
 }
 
@@ -454,19 +455,20 @@ const setCreateEdgeEnabled = (isEnabled: boolean) => {
 
   if (isEnabled) {
     state.clearMesh()
+    state.clearCloud()
     mode = CREATE_EDGE_MODE
     createEdgeBtn.setAttribute('active', '')
     createLoopBtn.setAttribute('disabled', '')
     createMeshBtn.setAttribute('disabled', '')
     createPCloudBtn.setAttribute('disabled', '')
-    fg.addEventListener('mousemove', handleMouseMove)
+    fg.addEventListener('mousemove', handleInteractiveLine)
   } else {
     mode = BEGIN_MODE
     createEdgeBtn.removeAttribute('active')
     createLoopBtn.removeAttribute('disabled')
     createMeshBtn.removeAttribute('disabled')
     createPCloudBtn.removeAttribute('disabled')
-    fg.removeEventListener('mousemove', handleMouseMove)
+    fg.removeEventListener('mousemove', handleInteractiveLine)
   }
 
   render()
@@ -482,6 +484,7 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
 
     if (isInnerLoop) {
       state.clearMesh()
+      state.clearCloud()
       state.clearEdges()
       state.beginInnerLoop()
     } else {
@@ -495,7 +498,7 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     createEdgeBtn.setAttribute('disabled', '')
     createMeshBtn.setAttribute('disabled', '')
     createPCloudBtn.setAttribute('disabled', '')
-    fg.addEventListener('mousemove', handleMouseMove)
+    fg.addEventListener('mousemove', handleInteractiveLine)
   } else {
     if (state.numLastLoopPoints <= 2) {
       state.clearLastLoop()
@@ -506,7 +509,7 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     createEdgeBtn.removeAttribute('disabled')
     createMeshBtn.removeAttribute('disabled')
     createPCloudBtn.removeAttribute('disabled')
-    fg.removeEventListener('mousemove', handleMouseMove)
+    fg.removeEventListener('mousemove', handleInteractiveLine)
   }
 
   render()
@@ -576,6 +579,43 @@ fg.addEventListener('contextmenu', (e) => {
 
   setCreateLoopEnabled(false)
   setCreateEdgeEnabled(false)
+})
+
+fg.addEventListener('mousedown', (e) => {
+  if (mode !== BEGIN_MODE) {
+    return
+  }
+
+  mode = DRAG_POINT_MODE
+
+  const x = e.clientX
+  const y = e.clientY
+
+  const pi = state.findPointNearby(x, y, VERT_SNAP_DIST)
+
+  if (pi !== null) {
+    lpi = pi
+  }
+})
+
+fg.addEventListener('mouseup', (e) => {
+  if (mode !== DRAG_POINT_MODE) {
+    return
+  }
+
+  if (lpi < 0) {
+    return
+  }
+
+  const x = rand(e.clientX)
+  const y = rand(e.clientY)
+
+  state.updatePointPosition(lpi, x, y)
+
+  lpi = -1
+  mode = BEGIN_MODE
+
+  render()
 })
 
 const clearActiveStates = () => {

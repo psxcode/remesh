@@ -568,7 +568,6 @@ export class Points {
     const xoffset = (aabb[2] - aabb[0]) % xstep / 2
     const yoffset = (aabb[3] - aabb[1]) % ystep / 2
     const strides: readonly [number[], number[], number[]] = [[], [], []]
-    const prevStride = (ci: number, offset: number) => (ci + offset + strides.length) % strides.length
 
     for (let x = aabb[0] + xoffset, xi = 0; x < aabb[2]; x += xstep, xi++) {
       let lpi = -1
@@ -579,7 +578,8 @@ export class Points {
         if (
           !this.isPointInsideLoop(x, y) ||
           this.findLoopEdgeNearby(x, y, loopMinDist) !== null ||
-          this.findEdgeNearby(x, y, edgeMinDist) !== null
+          this.findEdgeNearby(x, y, edgeMinDist) !== null ||
+          this.findEdgePointNearby(x, y, edgeMinDist) !== null
         ) {
           lpi = -1
           strides[currentStrideIndex].push(lpi)
@@ -598,8 +598,8 @@ export class Points {
 
         strides[currentStrideIndex].push(lpi)
 
-        const leftPointIndex0 = strides[prevStride(currentStrideIndex, -1)][yi]
-        const leftPointIndex1 = strides[prevStride(currentStrideIndex, -1)][yi + (xi2 * 2 - 1)]
+        const leftPointIndex0 = strides[(currentStrideIndex + 2) % strides.length][yi]
+        const leftPointIndex1 = strides[(currentStrideIndex + 2) % strides.length][yi + (xi2 * 2 - 1)]
 
         if (leftPointIndex0 >= 0) {
           edges.push(leftPointIndex0, lpi)
@@ -610,7 +610,7 @@ export class Points {
         }
 
         if (leftPointIndex0 < 0 || leftPointIndex1 < 0) {
-          const leftPointIndex2 = strides[prevStride(currentStrideIndex, -2)][yi]
+          const leftPointIndex2 = strides[(currentStrideIndex + 1) % strides.length][yi]
 
           if (leftPointIndex2 >= 0) {
             edges.push(leftPointIndex2, lpi)
@@ -618,7 +618,7 @@ export class Points {
         }
       }
 
-      strides[prevStride(currentStrideIndex, -2)].length = 0
+      strides[(currentStrideIndex + 1) % strides.length].length = 0
     }
   }
 
@@ -1096,6 +1096,20 @@ export class Points {
     return null
   }
 
+  findEdgePointNearby(x: number, y: number, dist=8): number | null {
+    const points: readonly number[] = this._points
+    const firstPointIndexAfterLoops = this._loopLength[this._loopLength.length - 1]
+    const dist2 = dist * dist
+
+    for (let i = firstPointIndexAfterLoops; i < points.length; i += 2) {
+      if (len2(x, y, points[i], points[i + 1]) < dist2) {
+        return i / 2
+      }
+    }
+
+    return null
+  }
+
   private getLoopIndex(flatPointIndex: number): number {
     for (let i = 0; i < this._loopLength.length; i++) {
       if (flatPointIndex < this._loopLength[i]) {
@@ -1211,6 +1225,17 @@ export class Points {
     this._points.push(x, y)
 
     return this.numPoints - 1
+  }
+
+  updatePointPosition(pointIndex: number, x: number, y: number) {
+    if (pointIndex < 0 || pointIndex >= this.numPoints) {
+      throw new Error(`updateLoopPointPosition: pointIndex:${pointIndex}, numPoints:${this.numPoints}`)
+    }
+
+    const pi = pointIndex * 2
+
+    this._points[pi] = x
+    this._points[pi + 1] = y
   }
 
   serialize(): string {

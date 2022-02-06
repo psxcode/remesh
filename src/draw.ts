@@ -105,13 +105,27 @@ export class Draw {
   drawPoints(state: Points) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
+    const numLoops = state.numLoops
 
     ctx.save()
     ctx.fillStyle = this.pointColor
 
-    ctx.fillRect(points[0] - 4, points[0 + 1] - 4, 8, 8)
+    // Loop points
+    for (let li = 0; li < numLoops; li++) {
+      const loopStart = state.getNumLoopPoints(li - 1)
+      const loopEnd = state.getNumLoopPoints(li)
 
-    for (let i = 2; i < points.length; i += 2) {
+      ctx.fillRect(points[loopStart] - 4, points[loopStart + 1] - 4, 8, 8)
+
+      for (let i = 2; i < loopEnd; i += 2) {
+        ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)
+      }
+    }
+
+    // Rest points
+    const firstPointAfterLoops = state.numLoopPoints * 2
+
+    for (let i = firstPointAfterLoops; i < points.length; i += 2) {
       ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)
     }
 

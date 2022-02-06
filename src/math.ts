@@ -1062,8 +1062,9 @@ export class Points {
     }
 
     const pi = afterPointIndex * 2
+    const xpi = pi + 2
 
-    this._points.splice(pi + 2, 0, x, y)
+    this._points.splice(xpi, 0, x, y)
 
     // Fix loops lengthes
     for (let li = this.getLoopIndex(pi); li < this._loopLength.length; li++) {
@@ -1079,7 +1080,7 @@ export class Points {
       }
     }
 
-    return (pi + 2) / 2
+    return xpi / 2
   }
 
   insertPointIntoEdge(x: number, y: number, edgeIndex: number): number {
@@ -1118,7 +1119,7 @@ export class Points {
     this._points.push(x, y)
     this._loopLength[this._loopLength.length - 1] += 2
 
-    return this.numPoints
+    return this.numPoints - 1
   }
 
   addEdgePoint(x: number, y: number): number {

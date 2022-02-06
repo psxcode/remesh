@@ -288,7 +288,7 @@ const addConstraintPoint = (x: number, y: number) => {
       const npi = state.insertPointIntoLoop(px, py, index)
 
       state.addEdge(
-        lpi > npi ? lpi + 1 : lpi,
+        lpi >= npi ? lpi + 1 : lpi,
         npi
       )
       lpi = npi
@@ -412,7 +412,7 @@ const addConstraintPoint = (x: number, y: number) => {
       const npi = state.insertPointIntoLoop(px, py, ein)
 
       state.addEdge(
-        lpi > npi ? lpi + 1 : lpi,
+        lpi >= npi ? lpi + 1 : lpi,
         npi
       )
       lpi = npi
@@ -489,6 +489,7 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     createLoopBtn.setAttribute('active', '')
     createEdgeBtn.setAttribute('disabled', '')
     createMeshBtn.setAttribute('disabled', '')
+    fg.addEventListener('mousemove', handleMouseMove)
   } else {
     if (state.numLastLoopPoints <= 2) {
       state.clearLastLoop()
@@ -498,6 +499,7 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     createLoopBtn.removeAttribute('active')
     createEdgeBtn.removeAttribute('disabled')
     createMeshBtn.removeAttribute('disabled')
+    fg.removeEventListener('mousemove', handleMouseMove)
   }
 
   render()

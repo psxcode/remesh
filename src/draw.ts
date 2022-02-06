@@ -3,7 +3,9 @@ import type { Points } from './math'
 export class Draw {
   ctx: CanvasRenderingContext2D
   pointColor = 'black'
+  cloudPointsColor = 'rgba(0, 0, 255, 0.6)'
   edgeColor = 'rgba(0, 0, 0, 0.4)'
+  cloudEdgeColor = 'rgba(0, 0, 255, 0.4)'
   meshColor = 'rgba(255, 128, 0, 0.4)'
   loopColor = 'red'
   constructor(ctx: CanvasRenderingContext2D) {
@@ -71,6 +73,7 @@ export class Draw {
     }
 
     ctx.stroke()
+    ctx.restore()
   }
 
   drawMesh(state: Points) {
@@ -104,19 +107,37 @@ export class Draw {
 
   drawPCloud(state: Points) {
     const ctx = this.ctx
-    const points = state.pcloudFlatArray
+    const points = state.cloudPointsFlatArray
+    const edges = state.cloudEdgesFlatArray
 
     if (points.length === 0) {
       return
     }
 
     ctx.save()
-    ctx.fillStyle = this.pointColor
+    ctx.fillStyle = this.cloudPointsColor
 
     for (let i = 0; i < points.length; i += 2) {
       ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
     }
 
+    // Edges
+    ctx.strokeStyle = this.cloudEdgeColor
+    ctx.beginPath()
+
+    for (let i = 0; i < edges.length; i += 2) {
+      const pi0 = edges[i]
+      const pi1 = edges[i + 1]
+      const p0x = points[pi0]
+      const p0y = points[pi0 + 1]
+      const p1x = points[pi1]
+      const p1y = points[pi1 + 1]
+
+      ctx.moveTo(p0x, p0y)
+      ctx.lineTo(p1x, p1y)
+    }
+
+    ctx.stroke()
     ctx.restore()
   }
 

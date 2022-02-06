@@ -178,7 +178,8 @@ export class Points {
   _loopLength: number[] = [0]
   _edges: number[] = []
   _meshEdges: number[] = []
-  _pcloud: number[] = []
+  _cPoints: number[] = []
+  _cEdges: number[] = []
 
   get numLoops() {
     return this._loopLength.length
@@ -219,8 +220,12 @@ export class Points {
     return this._meshEdges
   }
 
-  get pcloudFlatArray(): readonly number[] {
-    return this._pcloud
+  get cloudPointsFlatArray(): readonly number[] {
+    return this._cPoints
+  }
+
+  get cloudEdgesFlatArray(): readonly number[] {
+    return this._cEdges
   }
 
   getNumLoopPoints(loopIndex: number): number {
@@ -233,14 +238,15 @@ export class Points {
 
   clearAll() {
     this.clearEdges()
-    this.clearPCloud()
+    this.clearCloud()
     this._points.length = 0
     this._loopLength = [0]
   }
 
-  clearPCloud() {
+  clearCloud() {
     this.clearMesh()
-    this._pcloud.length = 0
+    this._cPoints.length = 0
+    this._cEdges.length = 0
   }
 
   clearMesh() {
@@ -255,7 +261,7 @@ export class Points {
 
   clearLastLoop() {
     this.clearMesh()
-    this.clearPCloud()
+    this.clearCloud()
     this.clearEdges()
 
     this._loopLength.length -= 1
@@ -543,38 +549,76 @@ export class Points {
   }
 
   generatePCloud(scale: number) {
-    this.clearPCloud()
+    this.clearCloud()
 
     if (!Number.isInteger(scale) || scale <= 0) {
       return
     }
 
+    const points = this._cPoints
+    const edges = this._cEdges
+
     const aabb: cAABB = this.getAABB()
 
-    const loopMinDist = scale * 0.5
-    const edgeMinDist = scale * 0.5
+    const loopMinDist = scale * 1.1
+    const edgeMinDist = scale * 1.1
     const xstep = scale
     const ystep = scale * 1.777
     const hystep = ystep * 0.5
     const xoffset = (aabb[2] - aabb[0]) % xstep / 2
     const yoffset = (aabb[3] - aabb[1]) % ystep / 2
+    const strides: readonly [number[], number[], number[]] = [[], [], []]
+    const prevStride = (ci: number, offset: number) => (ci + offset + strides.length) % strides.length
 
     for (let x = aabb[0] + xoffset, xi = 0; x < aabb[2]; x += xstep, xi++) {
-      for (let y = aabb[1] + yoffset + (xi % 2) * hystep; y < aabb[3]; y += ystep) {
-        if (!this.isPointInsideLoop(x, y)) {
+      let lpi = -1
+      const xi2 = xi % 2
+      const currentStrideIndex = xi % 3
+
+      for (let y = aabb[1] + yoffset + xi2 * hystep, yi = 0; y < aabb[3]; y += ystep, yi++) {
+        if (
+          !this.isPointInsideLoop(x, y) ||
+          this.findLoopEdgeNearby(x, y, loopMinDist) !== null ||
+          this.findEdgeNearby(x, y, edgeMinDist) !== null
+        ) {
+          lpi = -1
+          strides[currentStrideIndex].push(lpi)
           continue
         }
 
-        if (this.findLoopEdgeNearby(x, y, loopMinDist) !== null) {
-          continue
+        points.push(x, y)
+
+        if (lpi >= 0) {
+          const npi = this._cPoints.length - 2
+
+          edges.push(lpi, npi)
         }
 
-        if (this.findEdgeNearby(x, y, edgeMinDist) !== null) {
-          continue
+        lpi = this._cPoints.length - 2
+
+        strides[currentStrideIndex].push(lpi)
+
+        const leftPointIndex0 = strides[prevStride(currentStrideIndex, -1)][yi]
+        const leftPointIndex1 = strides[prevStride(currentStrideIndex, -1)][yi + (xi2 * 2 - 1)]
+
+        if (leftPointIndex0 >= 0) {
+          edges.push(leftPointIndex0, lpi)
         }
 
-        this._pcloud.push(x, y)
+        if (leftPointIndex1 >= 0) {
+          edges.push(leftPointIndex1, lpi)
+        }
+
+        if (leftPointIndex0 < 0 || leftPointIndex1 < 0) {
+          const leftPointIndex2 = strides[prevStride(currentStrideIndex, -2)][yi]
+
+          if (leftPointIndex2 >= 0) {
+            edges.push(leftPointIndex2, lpi)
+          }
+        }
       }
+
+      strides[prevStride(currentStrideIndex, -2)].length = 0
     }
   }
 

@@ -173,13 +173,14 @@ type Point = [number, number]
 type AABB = [number, number, number, number]
 type cAABB = readonly [number, number, number, number]
 
-export class Points {
+export class Remesh {
   _points: number[] = []
   _loopLength: number[] = [0]
   _edges: number[] = []
   _meshEdges: number[] = []
-  _cPoints: number[] = []
-  _cEdges: number[] = []
+
+  _cloudPoints: number[] = []
+  _cloudEdges: number[] = []
 
   get numLoops() {
     return this._loopLength.length
@@ -221,11 +222,11 @@ export class Points {
   }
 
   get cloudPointsFlatArray(): readonly number[] {
-    return this._cPoints
+    return this._cloudPoints
   }
 
   get cloudEdgesFlatArray(): readonly number[] {
-    return this._cEdges
+    return this._cloudEdges
   }
 
   getNumLoopPoints(loopIndex: number): number {
@@ -245,8 +246,8 @@ export class Points {
 
   clearCloud() {
     this.clearMesh()
-    this._cPoints.length = 0
-    this._cEdges.length = 0
+    this._cloudPoints.length = 0
+    this._cloudEdges.length = 0
   }
 
   clearMesh() {
@@ -548,22 +549,101 @@ export class Points {
     return false
   }
 
-  generatePCloud(scale: number) {
+  private subdivideCloudEdge(flatEdgeIndex: number, dist: number) {
+    const points = this._cloudPoints
+    const edges = this._cloudEdges
+
+    const p0 = edges[flatEdgeIndex]
+    const p1 = edges[flatEdgeIndex + 1]
+    const x0 = points[p0]
+    const y0 = points[p0 + 1]
+    const x1 = points[p1]
+    const y1 = points[p1 + 1]
+
+    const edgeLen2 = Math.sqrt(len2(x0, y0, x1, y1))
+    const numSubs = Math.ceil(edgeLen2 / dist / 3)
+
+    if (numSubs > 1) {
+      const dx = x1 - x0
+      const dy = y1 - y0
+      const xStep = dx / numSubs
+      const yStep = dy / numSubs
+      let lpi = points.length
+
+      edges[flatEdgeIndex + 1] = lpi
+      points.push(x0 + xStep, y0 + yStep)
+
+      for (let si = 2; si < numSubs; si++) {
+        const px = x0 + xStep * si
+        const py = y0 + yStep * si
+        const npi = points.length
+
+        points.push(px, py)
+        edges.push(lpi, npi)
+        lpi = npi
+      }
+
+      edges.push(lpi, p1)
+    }
+  }
+
+  generatePCloud(dist: number) {
     this.clearCloud()
 
-    if (!Number.isInteger(scale) || scale <= 0) {
-      return
+    if (!Number.isInteger(dist) || dist <= 0) {
+      throw new Error(`generatePCloud: dist:${dist}`)
     }
 
-    const points = this._cPoints
-    const edges = this._cEdges
+    const points = this._cloudPoints
+    const edges = this._cloudEdges
+    const origPoints: readonly number[] = this._points
+    const origPointsLength: readonly number[] = this._loopLength
+    const origEdges: readonly number[] = this._edges
 
+    // Copy loops as edges
+    for (let li = 0 ; li < origPointsLength.length; li++) {
+      const loopStart = li === 0 ? 0 : origPointsLength[li - 1]
+      const loopEnd = origPointsLength[li]
+
+      let pii = loopEnd - 2
+      let x0 = origPoints[pii]
+      let y0 = origPoints[pii + 1]
+
+      for (let pi = loopStart; pi < loopEnd; pi += 2) {
+        const x1 = origPoints[pi]
+        const y1 = origPoints[pi + 1]
+
+        points.push(x0, y0)
+        edges.push(pii, pi)
+
+        pii = pi
+        x0 = x1
+        y0 = y1
+      }
+    }
+
+    // Copy rest points
+    for (let pi = origPointsLength[origPointsLength.length - 1]; pi < origPoints.length; pi++) {
+      points.push(origPoints[pi])
+    }
+
+    // Copy constraint edges
+    for (let ei = 0; ei < origEdges.length; ei++) {
+      edges.push(origEdges[ei])
+    }
+
+    // Subdivide edges
+    for (let ei = 0, el = edges.length; ei < el; ei += 2) {
+      this.subdivideCloudEdge(ei, dist)
+    }
+
+    // Point cloud
     const aabb: cAABB = this.getAABB()
 
-    const loopMinDist = scale * 1.1
-    const edgeMinDist = scale * 1.1
-    const xstep = scale
-    const ystep = scale * 1.777
+    const loopMinDist = dist * 1.1
+    const edgeMinDist = dist * 1.1
+    const xstep = dist
+    const ystep = dist * 1.777
     const hystep = ystep * 0.5
     const xoffset = (aabb[2] - aabb[0]) % xstep / 2
     const yoffset = (aabb[3] - aabb[1]) % ystep / 2
@@ -588,13 +668,14 @@ export class Points {
 
         points.push(x, y)
 
+        // Strides
         if (lpi >= 0) {
-          const npi = this._cPoints.length - 2
+          const npi = points.length - 2
 
           edges.push(lpi, npi)
         }
 
-        lpi = this._cPoints.length - 2
+        lpi = points.length - 2
 
         strides[currentStrideIndex].push(lpi)
 
@@ -1096,7 +1177,7 @@ export class Points {
     return null
   }
 
-  findEdgePointNearby(x: number, y: number, dist=8): number | null {
+  findEdgePointNearby(x: number, y: number, dist = 8): number | null {
     const points: readonly number[] = this._points
     const firstPointIndexAfterLoops = this._loopLength[this._loopLength.length - 1]
     const dist2 = dist * dist

@@ -1,4 +1,4 @@
-import type { Points } from './math'
+import type { Remesh } from './math'
 
 export class Draw {
   ctx: CanvasRenderingContext2D
@@ -12,7 +12,7 @@ export class Draw {
     this.ctx = ctx
   }
 
-  drawLoop(state: Points, shouldClosePath: boolean) {
+  drawLoop(state: Remesh, shouldClosePath: boolean) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
 
@@ -46,7 +46,7 @@ export class Draw {
     ctx.restore()
   }
 
-  drawEdges(state: Points) {
+  drawEdges(state: Remesh) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
     const edges = state.edgesFlatArray
@@ -76,7 +76,7 @@ export class Draw {
     ctx.restore()
   }
 
-  drawMesh(state: Points) {
+  drawMesh(state: Remesh) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
     const edges = state.meshEdgesFlatArray
@@ -105,7 +105,7 @@ export class Draw {
     ctx.stroke()
   }
 
-  drawPCloud(state: Points) {
+  drawPCloud(state: Remesh) {
     const ctx = this.ctx
     const points = state.cloudPointsFlatArray
     const edges = state.cloudEdgesFlatArray
@@ -141,7 +141,7 @@ export class Draw {
     ctx.restore()
   }
 
-  drawPoints(state: Points) {
+  drawPoints(state: Remesh) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
     const numLoops = state.numLoops

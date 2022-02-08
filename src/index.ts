@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 import { Draw } from './draw'
-import { Points } from './math'
+import { Remesh } from './math'
 
 const WIDTH = 640
 const HEIGHT = 480
@@ -36,7 +36,7 @@ const drawBg = new Draw(bg.getContext('2d')!)
 const drawFg = new Draw(fg.getContext('2d')!)
 let mode = BEGIN_MODE
 
-const state: Points = new Points()
+const state: Remesh = new Remesh()
 let lpi = -1
 
 let stored: { [id: string]: string } = {}

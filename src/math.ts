@@ -1,3 +1,4 @@
+/* eslint-disable sort-vars */
 /* eslint-disable no-param-reassign */
 /* eslint-disable max-params */
 const len2 = (x0: number, y0: number, x1: number, y1: number): number => {
@@ -157,6 +158,30 @@ const isPointInSegmentABBB = (x: number, y: number, x0: number, y0: number, x1: 
   return x0 < x && x < x1 && y0 < y && y < y1
 }
 
+const discardEdge = (edges: number[], edgeIndex: number) => {
+  for (let i = edgeIndex + 2; i < edges.length; i += 2) {
+    edges[i - 2] = edges[i]
+    edges[i - 1] = edges[i + 1]
+  }
+
+  edges.length = edges.length - 2
+}
+
+const discardEdges = (edges: number[], discardIndexes: readonly number[]) => {
+  // Mark discarded edges with -1
+  for (let i = 0;i < discardIndexes.length; i++) {
+    edges[discardIndexes[i]] = -1
+  }
+
+  for (let i = 0, len = edges.length; i < len; i += 2) {
+    if (edges[i] === -1) {
+      discardEdge(edges, i)
+      i -= 2
+      len -= 2
+    }
+  }
+}
+
 // const isShortestPathRight = (pi0: number, pi1: number, loopLength: number): boolean => {
 //   if (Math.abs(pi1 - pi0) < Math.abs(loopLength - pi1 + pi0)) {
 //     return pi1 - pi0 >= 0
@@ -245,23 +270,18 @@ export class Remesh {
   }
 
   clearCloud() {
-    this.clearMesh()
     this._cloudPoints.length = 0
     this._cloudEdges.length = 0
-  }
-
-  clearMesh() {
     this._meshEdges.length = 0
   }
 
   clearEdges() {
-    this.clearMesh()
+    this.clearCloud()
     this._edges.length = 0
     this._points.length = this._loopLength[this._loopLength.length - 1]
   }
 
   clearLastLoop() {
-    this.clearMesh()
     this.clearCloud()
     this.clearEdges()
 
@@ -439,39 +459,6 @@ export class Remesh {
      ((pi0 + 1) % numLoopPoints === pi1 || (pi1 + 1) % numLoopPoints === pi0)
   }
 
-  private discardEdge(edges: number[], edgeIndex: number) {
-    for (let i = edgeIndex + 2; i < edges.length; i += 2) {
-      edges[i - 2] = edges[i]
-      edges[i - 1] = edges[i + 1]
-    }
-
-    edges.length = edges.length - 2
-  }
-
-  private discardEdges(edges: number[], discardIndexes: readonly number[]) {
-    // Mark discarded edges with -1
-    for (let i = 0;i < discardIndexes.length; i++) {
-      edges[discardIndexes[i]] = -1
-    }
-
-    for (let i = 0, len = edges.length; i < len; i += 2) {
-      if (edges[i] === -1) {
-        this.discardEdge(edges, i)
-        i -= 2
-        len -= 2
-      }
-    }
-  }
-
-  private isMiddleOutsideLoop(p0: number, p1: number) {
-    const points: readonly number[] = this._points
-
-    return !this.isPointInsideLoop(
-      (points[p0] + points[p1]) / 2,
-      (points[p0 + 1] + points[p1 + 1]) / 2
-    )
-  }
-
   doesNewLoopEdgeIntersectOtherLoops(x: number, y: number, basePointIndex: number): boolean {
     const points = this.pointsFlatArray
     const bpi = basePointIndex * 2
@@ -497,58 +484,6 @@ export class Remesh {
     return false
   }
 
-  private doesIntersectEdge(p0: number, p1: number): boolean {
-    const points = this.pointsFlatArray
-    const edges = this.edgesFlatArray
-    const x0 = points[p0]
-    const y0 = points[p0 + 1]
-    const x1 = points[p1]
-    const y1 = points[p1 + 1]
-
-    for (let i = 0; i < edges.length; i += 2) {
-      const p2 = edges[i]
-      const p3 = edges[i + 1]
-
-      if (p0 !== p2 && p0 !== p3 && p1 !== p2 && p1 !== p3 &&
-        isIntersecting(x0, y0, x1, y1, points[p2], points[p2 + 1], points[p3], points[p3 + 1])
-      ) {
-        return true
-      }
-    }
-
-    return false
-  }
-
-  private doesIntersectLoop(p0: number, p1: number): boolean {
-    if (this.isMiddleOutsideLoop(p0, p1)) {
-      return true
-    }
-
-    const points = this.pointsFlatArray
-    const x0 = points[p0]
-    const y0 = points[p0 + 1]
-    const x1 = points[p1]
-    const y1 = points[p1 + 1]
-
-    for (let li = 0; li < this._loopLength.length; li++) {
-      const loopStart = li === 0 ? 0 : this._loopLength[li - 1]
-      const loopEnd = this._loopLength[li]
-
-      let pii = loopEnd - 2
-
-      for (let pi = loopStart; pi < loopEnd; pi += 2) {
-        if (pi !== p0 && pi !== p1 && pii !== p0 && pii !== p1 &&
-        isIntersecting(x0, y0, x1, y1, points[pi], points[pi + 1], points[pii], points[pii + 1])) {
-          return true
-        }
-
-        pii = pi
-      }
-    }
-
-    return false
-  }
-
   private subdivideCloudEdge(flatEdgeIndex: number, dist: number) {
     const points = this._cloudPoints
     const edges = this._cloudEdges
@@ -560,14 +495,12 @@ export class Remesh {
     const x1 = points[p1]
     const y1 = points[p1 + 1]
 
-    const edgeLen2 = Math.sqrt(len2(x0, y0, x1, y1))
-    const numSubs = Math.ceil(edgeLen2 / dist / 3)
+    const edgeLen = Math.sqrt(len2(x0, y0, x1, y1))
+    const numSubs = Math.ceil(edgeLen / dist / 3)
 
     if (numSubs > 1) {
-      const dx = x1 - x0
-      const dy = y1 - y0
-      const xStep = dx / numSubs
-      const yStep = dy / numSubs
+      const xStep = (x1 - x0) / numSubs
+      const yStep = (y1 - y0) / numSubs
       let lpi = points.length
 
       edges[flatEdgeIndex + 1] = lpi
@@ -604,21 +537,11 @@ export class Remesh {
     for (let li = 0 ; li < origPointsLength.length; li++) {
       const loopStart = li === 0 ? 0 : origPointsLength[li - 1]
       const loopEnd = origPointsLength[li]
-
-      let pii = loopEnd - 2
-      let x0 = origPoints[pii]
-      let y0 = origPoints[pii + 1]
+      const loopDiff = loopEnd - loopStart
 
       for (let pi = loopStart; pi < loopEnd; pi += 2) {
-        const x1 = origPoints[pi]
-        const y1 = origPoints[pi + 1]
-
-        points.push(x0, y0)
-        edges.push(pii, pi)
-
-        pii = pi
-        x0 = x1
-        y0 = y1
+        points.push(origPoints[pi], origPoints[pi + 1])
+        edges.push(pi, (pi + 2) % loopDiff + loopStart)
       }
     }
 
@@ -633,13 +556,14 @@ export class Remesh {
     }
 
     // Subdivide edges
-    for (let ei = 0, el = edges.length; ei < el; ei += 2) {
+    for (let ei = 0, elen = edges.length; ei < elen; ei += 2) {
       this.subdivideCloudEdge(ei, dist)
     }
 
+    const pointsLength = points.length
+
     // Point cloud
     const aabb: cAABB = this.getAABB()
-
     const loopMinDist = dist * 1.1
     const edgeMinDist = dist * 1.1
     const xstep = dist
@@ -701,19 +625,107 @@ export class Remesh {
 
       strides[(currentStrideIndex + 1) % strides.length].length = 0
     }
-  }
 
-  generateMesh() {
-    this.clearMesh()
+    const meshEdges = this._meshEdges
 
-    const points = this.pointsFlatArray
-    const indices = this._meshEdges
+    const doesEdgeExists = (pi: number, pii: number): boolean => {
+      // console.log('-----------')
 
-    const discardLongerEdges = (flatEdgeIndex: number, /* out */discardedEdgeIndexes: number[]): number | null => {
+      for (let ei = 0; ei < edges.length; ei += 2) {
+        const epi = edges[ei]
+        const epii = edges[ei + 1]
+
+        // console.log(`${pi / 2}->${pii / 2}:${epi / 2}->${epii / 2}`)
+
+        if ((pi === epi && pii === epii) || (pi === epii && pii === epi)) {
+          // console.log('  EXISTS')
+
+          return true
+        }
+      }
+
+      for (let ei = 0; ei < meshEdges.length; ei += 2) {
+        const epi = meshEdges[ei]
+        const epii = meshEdges[ei + 1]
+
+        // console.log(`${pi / 2}->${pii / 2}:${epi / 2}->${epii / 2}`)
+
+        if ((pi === epi && pii === epii) || (pi === epii && pii === epi)) {
+          // console.log('  EXISTS')
+
+          return true
+        }
+      }
+
+      return false
+    }
+
+    const doesIntersectEdge = (p0: number, p1: number): boolean => {
+      const x0 = points[p0]
+      const y0 = points[p0 + 1]
+      const x1 = points[p1]
+      const y1 = points[p1 + 1]
+
+      for (let i = 0; i < edges.length; i += 2) {
+        const p2 = edges[i]
+        const p3 = edges[i + 1]
+
+        if (p0 !== p2 && p0 !== p3 && p1 !== p2 && p1 !== p3 &&
+        isIntersecting(x0, y0, x1, y1, points[p2], points[p2 + 1], points[p3], points[p3 + 1])
+        ) {
+          return true
+        }
+      }
+
+      return false
+    }
+
+    const isMiddleOutsideLoop = (p0: number, p1: number) => {
+      return !this.isPointInsideLoop(
+        (points[p0] + points[p1]) / 2,
+        (points[p0 + 1] + points[p1 + 1]) / 2
+      )
+    }
+
+    for (let pi = 0; pi < pointsLength; pi += 2) {
+      for (let pii = 0; pii < pointsLength; pii += 2) {
+        if (pi === pii) {
+          continue
+        }
+
+        if (doesEdgeExists(pi, pii)) {
+          continue
+        }
+
+        if (doesIntersectEdge(pi, pii)) {
+          continue
+        }
+
+        if (isMiddleOutsideLoop(pi, pii)) {
+          continue
+        }
+
+        if (this._isAnyPointNearbyEdge(points, pi, pii, 1)) {
+          continue
+        }
+
+        meshEdges.push(pi, pii)
+      }
+
+      for (let pii = pointsLength; pii < points.length; pii += 2) {
+        if (doesIntersectEdge(pi, pii)) {
+          continue
+        }
+
+        meshEdges.push(pi, pii)
+      }
+    }
+
+    const discardLongerMeshEdges = (flatEdgeIndex: number, /* out */discardedEdgeIndexes: number[]): number | null => {
       discardedEdgeIndexes.length = 0
 
-      const pi0 = indices[flatEdgeIndex]
-      const pi1 = indices[flatEdgeIndex + 1]
+      const pi0 = meshEdges[flatEdgeIndex]
+      const pi1 = meshEdges[flatEdgeIndex + 1]
       const x0 = points[pi0]
       const y0 = points[pi0 + 1]
       const x1 = points[pi1]
@@ -722,9 +734,9 @@ export class Remesh {
 
       // console.log(`BEGIN: ${pi0 / 2}->${pi1 / 2}`)
 
-      for (let i = 0; i < indices.length; i += 2) {
-        const i0 = indices[i]
-        const i1 = indices[i + 1]
+      for (let i = 0; i < meshEdges.length; i += 2) {
+        const i0 = meshEdges[i]
+        const i1 = meshEdges[i + 1]
         const tx0 = points[i0]
         const ty0 = points[i0 + 1]
         const tx1 = points[i1]
@@ -756,160 +768,31 @@ export class Remesh {
       return null
     }
 
-    const isSameEdgeButReversed = (i0: number, i1: number): boolean => {
-      for (let e = 0; e < indices.length; e += 2) {
-      // Same edge exists, but reversed
-        if (indices[e] === i1 && indices[e + 1] === i0) {
-          return true
-        }
-      }
-
-      return false
-    }
-
-    const mainLoopLength = this._loopLength[0]
-    const firstPointIndexAfterLoops = this._loopLength[this._loopLength.length - 1]
-
-    // Generate edges
-    for (let i = 0; i < mainLoopLength; i += 2) {
-      for (let k = (i + 4) % mainLoopLength; k !== (i - 2 + mainLoopLength) % mainLoopLength; k = ((k + 2) % mainLoopLength)) {
-        if (isSameEdgeButReversed(i, k)) {
-          continue
-        }
-
-        if (this.isExistingEdge(i / 2, k / 2)) {
-          continue
-        }
-
-        if (this.doesIntersectLoop(i, k)) {
-          continue
-        }
-
-        if (this.doesIntersectEdge(i, k)) {
-          continue
-        }
-
-        indices.push(i, k)
-      }
-
-      // Main loop to inner loops points
-      for (let k = mainLoopLength; k < firstPointIndexAfterLoops; k += 2) {
-        if (this.isExistingEdge(i / 2, k / 2)) {
-          continue
-        }
-
-        if (this.doesIntersectLoop(i, k)) {
-          continue
-        }
-
-        if (this.doesIntersectEdge(i, k)) {
-          continue
-        }
-
-        indices.push(i, k)
-      }
-    }
-
-    // Inner loops to Inner loops
-    for (let i = mainLoopLength; i < firstPointIndexAfterLoops; i += 2) {
-      for (let k = mainLoopLength; k < firstPointIndexAfterLoops; k += 2) {
-        if (i === k) {
-          continue
-        }
-
-        if (isSameEdgeButReversed(i, k)) {
-          continue
-        }
-
-        if (this.isExistingEdge(i / 2, k / 2)) {
-          continue
-        }
-
-        if (this.doesIntersectLoop(i, k)) {
-          continue
-        }
-
-        if (this.doesIntersectEdge(i, k)) {
-          continue
-        }
-
-        indices.push(i, k)
-      }
-    }
-
-    // Generate loop points to constraints points
-    for (let i = 0; i < firstPointIndexAfterLoops; i += 2) {
-      for (let k = firstPointIndexAfterLoops; k < points.length; k += 2) {
-        if (isSameEdgeButReversed(i, k)) {
-          continue
-        }
-
-        if (this.isExistingEdge(i / 2, k / 2)) {
-          continue
-        }
-
-        if (this.doesIntersectLoop(i, k)) {
-          continue
-        }
-
-        if (this.doesIntersectEdge(i, k)) {
-          continue
-        }
-
-        indices.push(i, k)
-      }
-    }
-
-    for (let i = firstPointIndexAfterLoops; i < points.length; i += 2) {
-      for (let k = firstPointIndexAfterLoops; k < points.length; k += 2) {
-        if (i === k) {
-          continue
-        }
-
-        if (isSameEdgeButReversed(i, k)) {
-          continue
-        }
-
-        if (this.isExistingEdge(i / 2, k / 2)) {
-          continue
-        }
-
-        if (this.doesIntersectLoop(i, k)) {
-          continue
-        }
-
-        if (this.doesIntersectEdge(i, k)) {
-          continue
-        }
-
-        indices.push(i, k)
-      }
-    }
-
+    // Discard phase
     const tempNumbers: number[] = []
 
-    for (let i = 0, len = indices.length; i < len;) {
-      const shorterEdgeIndex = discardLongerEdges(i, tempNumbers)
+    for (let mei = 0, len = meshEdges.length; mei < len;) {
+      const shorterEdgeIndex = discardLongerMeshEdges(mei, tempNumbers)
 
       if (shorterEdgeIndex !== null) {
-        const t0 = indices[i]
-        const t1 = indices[i + 1]
+        const t0 = meshEdges[mei]
+        const t1 = meshEdges[mei + 1]
 
-        indices[i] = indices[shorterEdgeIndex]
-        indices[i + 1] = indices[shorterEdgeIndex + 1]
-        indices[shorterEdgeIndex] = t0
-        indices[shorterEdgeIndex + 1] = t1
+        meshEdges[mei] = meshEdges[shorterEdgeIndex]
+        meshEdges[mei + 1] = meshEdges[shorterEdgeIndex + 1]
+        meshEdges[shorterEdgeIndex] = t0
+        meshEdges[shorterEdgeIndex + 1] = t1
 
         continue
       }
 
       if (tempNumbers.length > 0) {
         // console.log('LONGER EDGES', `${indices[i] / 2} -> ${indices[i + 1] / 2}`, tempNumbers.map((i) => `${indices[i] / 2} -> ${indices[i + 1] / 2}`))
-        this.discardEdges(indices, tempNumbers)
+        discardEdges(meshEdges, tempNumbers)
         len -= 2 * tempNumbers.length
       }
 
-      i += 2
+      mei += 2
     }
   }
 
@@ -1068,14 +951,17 @@ export class Remesh {
   }
 
   isAnyPointNearbyEdge(basePointIndex: number, targetPointIndex: number, dist = 8): boolean {
-    const points = this.pointsFlatArray
+    return this._isAnyPointNearbyEdge(this.pointsFlatArray, basePointIndex * 2, targetPointIndex * 2, dist)
+  }
+
+  private _isAnyPointNearbyEdge(points: readonly number[], bpi: number, tpi: number, dist: number): boolean {
     const dist2 = dist * dist
-    const bpi = basePointIndex * 2
-    const tpi = targetPointIndex * 2
     const bx = points[bpi]
     const by = points[bpi + 1]
     const tx = points[tpi]
     const ty = points[tpi + 1]
+
+    // console.log(`${bpi / 2}->${tpi / 2}`)
 
     for (let i = 0; i < points.length; i += 2) {
       if (i === bpi || i === tpi) {
@@ -1086,12 +972,17 @@ export class Remesh {
       const y = points[i + 1]
 
       if (!isPointInSegmentABBB(x, y, tx, ty, bx, by)) {
+        // console.log(`  ${i / 2} NOT_IN_AABB`)
         continue
       }
 
-      const d = distToSegment2(x, y, tx, ty, bx, by)
+      const d2 = distToSegment2(x, y, tx, ty, bx, by)
 
-      if (d < dist2) {
+      // console.log(`  ${i / 2} = ${Math.sqrt(d2)}`)
+
+      if (d2 < dist2) {
+        // console.log('  NEARBY')
+
         return true
       }
     }
@@ -1100,7 +991,10 @@ export class Remesh {
   }
 
   isAnyPointNearbyNewEdge(tx: number, ty: number, basePointIndex: number, dist = 8): boolean {
-    const points = this.pointsFlatArray
+    return this._isAnyPointNearbyNewEdge(this.pointsFlatArray, tx, ty, basePointIndex, dist)
+  }
+
+  private _isAnyPointNearbyNewEdge(points: readonly number[], tx: number, ty: number, basePointIndex: number, dist: number): boolean {
     const dist2 = dist * dist
     const bpi = basePointIndex * 2
     const bx = points[bpi]
@@ -1339,6 +1233,6 @@ export class Remesh {
       this._loopLength = loopLength
     }
 
-    this.clearMesh()
+    this.clearCloud()
   }
 }

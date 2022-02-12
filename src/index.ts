@@ -10,7 +10,6 @@ const rand = (int: number) => int + Math.random()
 const resetBtn = document.getElementById('reset')!
 const createLoopBtn = document.getElementById('create-loop')!
 const createEdgeBtn = document.getElementById('create-edge')!
-const createMeshBtn = document.getElementById('create-mesh')!
 const createPCloudBtn = document.getElementById('create-pcloud')!
 const saveStateBtn = document.getElementById('save-state')!
 const loadStateBtn = document.getElementById('load-state')!
@@ -48,7 +47,6 @@ const resetState = () => {
 
   createLoopBtn.removeAttribute('disabled')
   createEdgeBtn.removeAttribute('disabled')
-  createMeshBtn.removeAttribute('disabled')
   createPCloudBtn.removeAttribute('disabled')
 
   createLoopBtn.removeAttribute('active')
@@ -73,8 +71,6 @@ const resetState = () => {
 const render = () => {
   drawFg.clearRect(0, 0, WIDTH, HEIGHT)
   drawBg.clearRect(0, 0, WIDTH, HEIGHT)
-
-  drawBg.drawMesh(state)
 
   if (viewLoopCheckbox.checked) {
     drawBg.drawLoop(state, mode !== CREATE_LOOP_MODE && mode !== CREATE_INNER_LOOP_MODE)
@@ -454,19 +450,16 @@ const setCreateEdgeEnabled = (isEnabled: boolean) => {
   lpi = -1
 
   if (isEnabled) {
-    state.clearMesh()
     state.clearCloud()
     mode = CREATE_EDGE_MODE
     createEdgeBtn.setAttribute('active', '')
     createLoopBtn.setAttribute('disabled', '')
-    createMeshBtn.setAttribute('disabled', '')
     createPCloudBtn.setAttribute('disabled', '')
     fg.addEventListener('mousemove', handleInteractiveLine)
   } else {
     mode = BEGIN_MODE
     createEdgeBtn.removeAttribute('active')
     createLoopBtn.removeAttribute('disabled')
-    createMeshBtn.removeAttribute('disabled')
     createPCloudBtn.removeAttribute('disabled')
     fg.removeEventListener('mousemove', handleInteractiveLine)
   }
@@ -483,7 +476,6 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     const isInnerLoop = state.numPoints > 0
 
     if (isInnerLoop) {
-      state.clearMesh()
       state.clearCloud()
       state.clearEdges()
       state.beginInnerLoop()
@@ -496,7 +488,6 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
 
     createLoopBtn.setAttribute('active', '')
     createEdgeBtn.setAttribute('disabled', '')
-    createMeshBtn.setAttribute('disabled', '')
     createPCloudBtn.setAttribute('disabled', '')
     fg.addEventListener('mousemove', handleInteractiveLine)
   } else {
@@ -507,7 +498,6 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
     mode = BEGIN_MODE
     createLoopBtn.removeAttribute('active')
     createEdgeBtn.removeAttribute('disabled')
-    createMeshBtn.removeAttribute('disabled')
     createPCloudBtn.removeAttribute('disabled')
     fg.removeEventListener('mousemove', handleInteractiveLine)
   }
@@ -521,13 +511,6 @@ createLoopBtn.addEventListener('click', () => {
 
 createEdgeBtn.addEventListener('click', () => {
   setCreateEdgeEnabled(mode === BEGIN_MODE)
-})
-
-createMeshBtn.addEventListener('click', () => {
-  state.generateMesh()
-  console.log('NUM_EDGES:', state.numEdges)
-  console.log('NUM_MESH:', state.numMeshEdges)
-  render()
 })
 
 createPCloudBtn.addEventListener('click', () => {

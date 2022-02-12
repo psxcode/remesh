@@ -76,69 +76,71 @@ export class Draw {
     ctx.restore()
   }
 
-  drawMesh(state: Remesh) {
-    const ctx = this.ctx
-    const points = state.pointsFlatArray
-    const edges = state.meshEdgesFlatArray
-
-    if (edges.length === 0) {
-      return
-    }
-
-    ctx.save()
-    ctx.strokeStyle = this.meshColor
-
-    ctx.beginPath()
-
-    for (let i = 0; i < edges.length; i += 2) {
-      const pi0 = edges[i]
-      const pi1 = edges[i + 1]
-      const p0x = points[pi0]
-      const p0y = points[pi0 + 1]
-      const p1x = points[pi1]
-      const p1y = points[pi1 + 1]
-
-      ctx.moveTo(p0x, p0y)
-      ctx.lineTo(p1x, p1y)
-    }
-
-    ctx.stroke()
-  }
-
   drawPCloud(state: Remesh) {
     const ctx = this.ctx
     const points = state.cloudPointsFlatArray
-    const edges = state.cloudEdgesFlatArray
 
     if (points.length === 0) {
       return
     }
 
-    ctx.save()
-    ctx.fillStyle = this.cloudPointsColor
+    {
+      const edges = state.cloudEdgesFlatArray
 
-    for (let i = 0; i < points.length; i += 2) {
-      ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
+      ctx.save()
+      ctx.fillStyle = this.cloudPointsColor
+
+      for (let i = 0; i < points.length; i += 2) {
+        ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
+      }
+
+      // Edges
+      ctx.strokeStyle = this.cloudEdgeColor
+      ctx.beginPath()
+
+      for (let i = 0; i < edges.length; i += 2) {
+        const pi0 = edges[i]
+        const pi1 = edges[i + 1]
+        const p0x = points[pi0]
+        const p0y = points[pi0 + 1]
+        const p1x = points[pi1]
+        const p1y = points[pi1 + 1]
+
+        ctx.moveTo(p0x, p0y)
+        ctx.lineTo(p1x, p1y)
+      }
+
+      ctx.stroke()
+      ctx.restore()
     }
 
-    // Edges
-    ctx.strokeStyle = this.cloudEdgeColor
-    ctx.beginPath()
+    {
+      const edges = state.meshEdgesFlatArray
 
-    for (let i = 0; i < edges.length; i += 2) {
-      const pi0 = edges[i]
-      const pi1 = edges[i + 1]
-      const p0x = points[pi0]
-      const p0y = points[pi0 + 1]
-      const p1x = points[pi1]
-      const p1y = points[pi1 + 1]
+      if (edges.length === 0) {
+        return
+      }
 
-      ctx.moveTo(p0x, p0y)
-      ctx.lineTo(p1x, p1y)
+      ctx.save()
+      ctx.strokeStyle = this.meshColor
+
+      ctx.beginPath()
+
+      for (let i = 0; i < edges.length; i += 2) {
+        const pi0 = edges[i]
+        const pi1 = edges[i + 1]
+        const p0x = points[pi0]
+        const p0y = points[pi0 + 1]
+        const p1x = points[pi1]
+        const p1y = points[pi1 + 1]
+
+        ctx.moveTo(p0x, p0y)
+        ctx.lineTo(p1x, p1y)
+      }
+
+      ctx.stroke()
+      ctx.restore()
     }
-
-    ctx.stroke()
-    ctx.restore()
   }
 
   drawPoints(state: Remesh) {

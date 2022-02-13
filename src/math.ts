@@ -687,6 +687,8 @@ export class Remesh {
       )
     }
 
+    const maxEdgeLen2 = dist * dist * 8
+
     for (let pi = 0; pi < pointsLength; pi += 2) {
       for (let pii = 0; pii < pointsLength; pii += 2) {
         if (pi === pii) {
@@ -713,6 +715,10 @@ export class Remesh {
       }
 
       for (let pii = pointsLength; pii < points.length; pii += 2) {
+        if (len2(points[pi], points[pi + 1], points[pii], points[pii + 1]) > maxEdgeLen2) {
+          continue
+        }
+
         if (doesIntersectEdge(pi, pii)) {
           continue
         }

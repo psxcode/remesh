@@ -541,7 +541,7 @@ export class Remesh {
 
       for (let pi = loopStart; pi < loopEnd; pi += 2) {
         points.push(origPoints[pi], origPoints[pi + 1])
-        edges.push(pi, (pi + 2) % loopDiff + loopStart)
+        edges.push(pi, (pi + 2 - loopStart) % loopDiff + loopStart)
       }
     }
 
@@ -687,11 +687,16 @@ export class Remesh {
       )
     }
 
-    const maxEdgeLen2 = dist * dist * 8
+    const maxEdgeLen1 = dist * dist * 32
+    const maxEdgeLen2 = dist * dist * 16
 
     for (let pi = 0; pi < pointsLength; pi += 2) {
       for (let pii = 0; pii < pointsLength; pii += 2) {
         if (pi === pii) {
+          continue
+        }
+
+        if (len2(points[pi], points[pi + 1], points[pii], points[pii + 1]) > maxEdgeLen1) {
           continue
         }
 

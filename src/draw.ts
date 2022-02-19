@@ -1,5 +1,5 @@
-import type { LoopState, MeshState } from './math'
-import { EDGE_DATA_LENGTH, MESH_EDGE_DATA_LENGTH, POINT_DATA_LENGTH } from './math'
+import { LoopState } from './LoopState'
+import { MeshState } from './MeshState'
 
 export class Draw {
   ctx: CanvasRenderingContext2D
@@ -61,7 +61,7 @@ export class Draw {
 
     ctx.beginPath()
 
-    for (let i = 0; i < edges.length; i += EDGE_DATA_LENGTH) {
+    for (let i = 0; i < edges.length; i += LoopState.EDGE_DATA_LENGTH) {
       const pi0 = edges[i]
       const pi1 = edges[i + 1]
 
@@ -87,7 +87,7 @@ export class Draw {
       ctx.save()
       ctx.fillStyle = this.cloudPointsColor
 
-      for (let i = 0; i < points.length; i += POINT_DATA_LENGTH) {
+      for (let i = 0; i < points.length; i += MeshState.POINT_DATA_LENGTH) {
         ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
       }
 
@@ -95,7 +95,7 @@ export class Draw {
       ctx.strokeStyle = this.cloudEdgeColor
       ctx.beginPath()
 
-      for (let i = 0; i < edges.length; i += EDGE_DATA_LENGTH) {
+      for (let i = 0; i < edges.length; i += MeshState.EDGE_DATA_LENGTH) {
         const pi0 = edges[i]
         const pi1 = edges[i + 1]
 
@@ -119,7 +119,7 @@ export class Draw {
 
       ctx.beginPath()
 
-      for (let i = 0; i < edges.length; i += MESH_EDGE_DATA_LENGTH) {
+      for (let i = 0; i < edges.length; i += MeshState.MESH_EDGE_DATA_LENGTH) {
         const pi0 = edges[i]
         const pi1 = edges[i + 1]
         const p0x = points[pi0]
@@ -152,15 +152,15 @@ export class Draw {
       // Draw firts point bigger
       ctx.fillRect(points[loopStart] - 4, points[loopStart + 1] - 4, 8, 8)
 
-      for (let i = POINT_DATA_LENGTH; i < loopEnd; i += POINT_DATA_LENGTH) {
+      for (let i = LoopState.POINT_DATA_LENGTH; i < loopEnd; i += LoopState.POINT_DATA_LENGTH) {
         ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)
       }
     }
 
     // Rest points
-    const firstPointAfterLoops = state.numLoopPoints * POINT_DATA_LENGTH
+    const firstPointAfterLoops = state.numLoopPoints * LoopState.POINT_DATA_LENGTH
 
-    for (let i = firstPointAfterLoops; i < points.length; i += POINT_DATA_LENGTH) {
+    for (let i = firstPointAfterLoops; i < points.length; i += LoopState.POINT_DATA_LENGTH) {
       ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)
     }
 

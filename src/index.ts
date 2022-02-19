@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
+import { LoopState } from './LoopState'
+import { MeshState } from './MeshState'
 import { Draw } from './draw'
-import { LoopState, MeshState } from './math'
 
 const WIDTH = 640
 const HEIGHT = 480
@@ -42,7 +43,7 @@ let lpi = -1
 let stored: { [id: string]: string } = {}
 
 const resetState = () => {
-  loopState.clearAll()
+  loopState.clear()
   meshState.clear()
   mode = BEGIN_MODE
   lpi = -1
@@ -187,7 +188,7 @@ const addConstraintPoint = (x: number, y: number) => {
       }
     }
 
-    if (loopState.isPointInsideLoops(x, y)) {
+    if (loopState.isPointInsideAllLoops(x, y)) {
       // console.log('  GOOD_POINT')
       lpi = loopState.addEdgePoint(x, y)
 
@@ -424,7 +425,7 @@ const addConstraintPoint = (x: number, y: number) => {
   }
 
   // Standalone point
-  if (loopState.isPointInsideLoops(x, y)) {
+  if (loopState.isPointInsideAllLoops(x, y)) {
     // console.log('  GOOD_POINT')
 
     if (loopState.isAnyPointNearbyNewEdge(x, y, lpi)) {
@@ -482,7 +483,8 @@ const setCreateLoopEnabled = (isEnabled: boolean) => {
       loopState.clearEdges()
       loopState.beginInnerLoop()
     } else {
-      loopState.clearAll()
+      meshState.clear()
+      loopState.clear()
     }
 
     mode = isInnerLoop ? CREATE_INNER_LOOP_MODE : CREATE_LOOP_MODE

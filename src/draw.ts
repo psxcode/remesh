@@ -1,4 +1,4 @@
-import type { Remesh } from './math'
+import type { LoopState, MeshState } from './math'
 import { EDGE_DATA_LENGTH, MESH_EDGE_DATA_LENGTH, POINT_DATA_LENGTH } from './math'
 
 export class Draw {
@@ -13,7 +13,7 @@ export class Draw {
     this.ctx = ctx
   }
 
-  drawLoop(state: Remesh, shouldClosePath: boolean) {
+  drawLoop(state: LoopState, shouldClosePath: boolean) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
 
@@ -47,7 +47,7 @@ export class Draw {
     ctx.restore()
   }
 
-  drawEdges(state: Remesh) {
+  drawEdges(state: LoopState) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
     const edges = state.edgesFlatArray
@@ -73,16 +73,16 @@ export class Draw {
     ctx.restore()
   }
 
-  drawPCloud(state: Remesh) {
+  drawPCloud(state: MeshState) {
     const ctx = this.ctx
-    const points = state.cloudPointsFlatArray
+    const points = state.pointsFlatArray
 
     if (points.length === 0) {
       return
     }
 
     {
-      const edges = state.cloudEdgesFlatArray
+      const edges = state.edgesFlatArray
 
       ctx.save()
       ctx.fillStyle = this.cloudPointsColor
@@ -136,7 +136,7 @@ export class Draw {
     }
   }
 
-  drawPoints(state: Remesh) {
+  drawPoints(state: LoopState) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
     const numLoops = state.numLoops

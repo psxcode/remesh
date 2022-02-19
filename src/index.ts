@@ -185,7 +185,7 @@ const addConstraintPoint = (x: number, y: number) => {
       }
     }
 
-    if (state.isPointInsideLoop(x, y)) {
+    if (state.isPointInsideLoops(x, y)) {
       // console.log('  GOOD_POINT')
       lpi = state.addEdgePoint(x, y)
 
@@ -422,7 +422,7 @@ const addConstraintPoint = (x: number, y: number) => {
   }
 
   // Standalone point
-  if (state.isPointInsideLoop(x, y)) {
+  if (state.isPointInsideLoops(x, y)) {
     // console.log('  GOOD_POINT')
 
     if (state.isAnyPointNearbyNewEdge(x, y, lpi)) {

@@ -1,4 +1,5 @@
 import type { Remesh } from './math'
+import { EDGE_DATA_LENGTH, MESH_EDGE_DATA_LENGTH, POINT_DATA_LENGTH } from './math'
 
 export class Draw {
   ctx: CanvasRenderingContext2D
@@ -60,16 +61,12 @@ export class Draw {
 
     ctx.beginPath()
 
-    for (let i = 0; i < edges.length; i += 2) {
+    for (let i = 0; i < edges.length; i += EDGE_DATA_LENGTH) {
       const pi0 = edges[i]
       const pi1 = edges[i + 1]
-      const p0x = points[pi0]
-      const p0y = points[pi0 + 1]
-      const p1x = points[pi1]
-      const p1y = points[pi1 + 1]
 
-      ctx.moveTo(p0x, p0y)
-      ctx.lineTo(p1x, p1y)
+      ctx.moveTo(points[pi0], points[pi0 + 1])
+      ctx.lineTo(points[pi1], points[pi1 + 1])
     }
 
     ctx.stroke()
@@ -90,7 +87,7 @@ export class Draw {
       ctx.save()
       ctx.fillStyle = this.cloudPointsColor
 
-      for (let i = 0; i < points.length; i += 2) {
+      for (let i = 0; i < points.length; i += POINT_DATA_LENGTH) {
         ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
       }
 
@@ -98,16 +95,12 @@ export class Draw {
       ctx.strokeStyle = this.cloudEdgeColor
       ctx.beginPath()
 
-      for (let i = 0; i < edges.length; i += 2) {
+      for (let i = 0; i < edges.length; i += EDGE_DATA_LENGTH) {
         const pi0 = edges[i]
         const pi1 = edges[i + 1]
-        const p0x = points[pi0]
-        const p0y = points[pi0 + 1]
-        const p1x = points[pi1]
-        const p1y = points[pi1 + 1]
 
-        ctx.moveTo(p0x, p0y)
-        ctx.lineTo(p1x, p1y)
+        ctx.moveTo(points[pi0], points[pi0 + 1])
+        ctx.lineTo(points[pi1], points[pi1 + 1])
       }
 
       ctx.stroke()
@@ -126,7 +119,7 @@ export class Draw {
 
       ctx.beginPath()
 
-      for (let i = 0; i < edges.length; i += 2) {
+      for (let i = 0; i < edges.length; i += MESH_EDGE_DATA_LENGTH) {
         const pi0 = edges[i]
         const pi1 = edges[i + 1]
         const p0x = points[pi0]
@@ -156,17 +149,18 @@ export class Draw {
       const loopStart = state.getNumLoopPoints(li - 1)
       const loopEnd = state.getNumLoopPoints(li)
 
+      // Draw firts point bigger
       ctx.fillRect(points[loopStart] - 4, points[loopStart + 1] - 4, 8, 8)
 
-      for (let i = 2; i < loopEnd; i += 2) {
+      for (let i = POINT_DATA_LENGTH; i < loopEnd; i += POINT_DATA_LENGTH) {
         ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)
       }
     }
 
     // Rest points
-    const firstPointAfterLoops = state.numLoopPoints * 2
+    const firstPointAfterLoops = state.numLoopPoints * POINT_DATA_LENGTH
 
-    for (let i = firstPointAfterLoops; i < points.length; i += 2) {
+    for (let i = firstPointAfterLoops; i < points.length; i += POINT_DATA_LENGTH) {
       ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)
     }
 

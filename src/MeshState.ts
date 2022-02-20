@@ -28,44 +28,42 @@ type EdgesData = number[]
 type cEdgesData = readonly number[]
 
 export class MeshState {
-  private loopState: LoopState
-  private points: PointsData = []
-  private edges: EdgesData = []
-  private meshEdges: EdgesData = []
+  private _loopState: LoopState
+  private _points: PointsData = []
+  private _edges: EdgesData = []
+  private _edgesLengthes: number[] = [0]
 
   static readonly POINT_DATA_LENGTH = 2
   static readonly EDGE_DATA_LENGTH = 2
-  static readonly MESH_EDGE_DATA_LENGTH = 2
+
+  static readonly BASE_EDGES_INDEX = 0
+  static readonly PCLOUD_EDGES_INDEX = 1
 
   constructor(loopState: LoopState) {
-    this.loopState = loopState
-  }
-
-  get meshEdgesFlatArray(): cEdgesData {
-    return this.meshEdges
+    this._loopState = loopState
   }
 
   get pointsFlatArray(): cPointsData {
-    return this.points
+    return this._points
   }
 
   get edgesFlatArray(): cEdgesData {
-    return this.edges
+    return this._edges
   }
 
-  get numMeshEdges() {
-    return this.meshEdges.length / MeshState.MESH_EDGE_DATA_LENGTH
+  get edgesLengthes(): readonly number[] {
+    return this._edgesLengthes
   }
 
-  private doesIntersectEdge(p0: number, p1: number): boolean {
-    const points = this.points
-    const edges = this.edges
+  private doesIntersectEdge(p0: number, p1: number, flatFrom: number, flatTo: number): boolean {
+    const points = this._points
+    const edges = this._edges
     const x0 = points[p0]
     const y0 = points[p0 + 1]
     const x1 = points[p1]
     const y1 = points[p1 + 1]
 
-    for (let i = 0; i < edges.length; i += MeshState.EDGE_DATA_LENGTH) {
+    for (let i = flatFrom; i < flatTo; i += MeshState.EDGE_DATA_LENGTH) {
       const p2 = edges[i]
       const p3 = edges[i + 1]
 
@@ -79,27 +77,13 @@ export class MeshState {
     return false
   }
 
-  private doesEdgeExists(pi: number, pii: number): boolean {
+  private doesEdgeExists(pi: number, pii: number, flatFrom: number, flatTo: number): boolean {
     // console.log('-----------')
-    const edges = this.edges
-    const meshEdges = this.meshEdges
+    const edges = this._edges
 
-    for (let ei = 0; ei < edges.length; ei += MeshState.EDGE_DATA_LENGTH) {
+    for (let ei = flatFrom; ei < flatTo; ei += MeshState.EDGE_DATA_LENGTH) {
       const epi = edges[ei]
       const epii = edges[ei + 1]
-
-      // console.log(`${pi / 2}->${pii / 2}:${epi / 2}->${epii / 2}`)
-
-      if ((pi === epi && pii === epii) || (pi === epii && pii === epi)) {
-        // console.log('  EXISTS')
-
-        return true
-      }
-    }
-
-    for (let ei = 0; ei < meshEdges.length; ei += MeshState.MESH_EDGE_DATA_LENGTH) {
-      const epi = meshEdges[ei]
-      const epii = meshEdges[ei + 1]
 
       // console.log(`${pi / 2}->${pii / 2}:${epi / 2}->${epii / 2}`)
 
@@ -114,26 +98,26 @@ export class MeshState {
   }
 
   private isMiddleOutsideLoop(p0: number, p1: number): boolean {
-    const points = this.points
+    const points = this._points
 
-    return !this.loopState.isPointInsideAllLoops(
+    return !this._loopState.isPointInsideAllLoops(
       (points[p0] + points[p1]) * 0.5,
       (points[p0 + 1] + points[p1 + 1]) * 0.5
     )
   }
 
-  private isAnyPointNearbyEdge(flatBpi: number, flatTpi: number): boolean {
-    const points = this.points
+  private isAnyPointNearbyEdge(p0: number, p1: number, flatFrom: number, flatTo: number): boolean {
+    const points = this._points
     const dist2 = 1
-    const bx = points[flatBpi]
-    const by = points[flatBpi + 1]
-    const tx = points[flatTpi]
-    const ty = points[flatTpi + 1]
+    const bx = points[p0]
+    const by = points[p0 + 1]
+    const tx = points[p1]
+    const ty = points[p1 + 1]
 
     // console.log(`${bpi / 2}->${tpi / 2}`)
 
-    for (let i = 0; i < points.length; i += MeshState.POINT_DATA_LENGTH) {
-      if (i === flatBpi || i === flatTpi) {
+    for (let i = flatFrom; i < flatTo; i += MeshState.POINT_DATA_LENGTH) {
+      if (i === p0 || i === p1) {
         continue
       }
 
@@ -146,11 +130,10 @@ export class MeshState {
       }
 
       const d2 = distToSegment2(x, y, tx, ty, bx, by)
-
       // console.log(`  ${i / 2} = ${Math.sqrt(d2)}`)
 
       if (d2 < dist2) {
-      // console.log('  NEARBY')
+        // console.log('  NEARBY')
 
         return true
       }
@@ -159,13 +142,13 @@ export class MeshState {
     return false
   }
 
-  private discardLongerMeshEdges(flatEdgeIndex: number, /* out */discardedEdgeIndexes: number[]): number | null {
+  private discardLongerMeshEdges(ei: number, /* out */discardedEdgeIndexes: number[]): number | null {
     discardedEdgeIndexes.length = 0
 
-    const points = this.points
-    const meshEdges = this.meshEdges
-    const pi0 = meshEdges[flatEdgeIndex]
-    const pi1 = meshEdges[flatEdgeIndex + 1]
+    const points = this._points
+    const meshEdges = this._edges
+    const pi0 = meshEdges[ei]
+    const pi1 = meshEdges[ei + 1]
     const x0 = points[pi0]
     const y0 = points[pi0 + 1]
     const x1 = points[pi1]
@@ -174,9 +157,9 @@ export class MeshState {
 
     // console.log(`BEGIN: ${pi0 / 2}->${pi1 / 2}`)
 
-    for (let i = 0; i < meshEdges.length; i += MeshState.MESH_EDGE_DATA_LENGTH) {
-      const i0 = meshEdges[i]
-      const i1 = meshEdges[i + 1]
+    for (let mei = this._edgesLengthes[MeshState.PCLOUD_EDGES_INDEX]; mei < meshEdges.length; mei += MeshState.EDGE_DATA_LENGTH) {
+      const i0 = meshEdges[mei]
+      const i1 = meshEdges[mei + 1]
       const tx0 = points[i0]
       const ty0 = points[i0 + 1]
       const tx1 = points[i1]
@@ -195,11 +178,11 @@ export class MeshState {
           // Is not shorter
           // console.log('  DISCARD SOURCE')
 
-          return i
+          return mei
         }
 
         // Is shorter
-        discardedEdgeIndexes.push(i)
+        discardedEdgeIndexes.push(mei)
       }
     }
 
@@ -209,25 +192,25 @@ export class MeshState {
   }
 
   private discardEdges(discardIndexes: readonly number[]) {
-    const edges = this.meshEdges
     const EDGE_DATA_LENGTH = MeshState.EDGE_DATA_LENGTH
+    const meshEdges = this._edges
 
     // Mark discarded edges with -1
     for (let i = 0; i < discardIndexes.length; i++) {
-      edges[discardIndexes[i]] = -1
+      meshEdges[discardIndexes[i]] = -1
     }
 
-    for (let ei = 0, len = edges.length; ei < len; ei += EDGE_DATA_LENGTH) {
+    for (let ei = this._edgesLengthes[MeshState.PCLOUD_EDGES_INDEX], len = meshEdges.length; ei < len; ei += EDGE_DATA_LENGTH) {
     // Find marked edges
-      if (edges[ei] === -1) {
+      if (meshEdges[ei] === -1) {
       // Shift next edges data over the previous
-        for (let i = ei + EDGE_DATA_LENGTH; i < edges.length; i += EDGE_DATA_LENGTH) {
-          edges[i - EDGE_DATA_LENGTH] = edges[i]
-          edges[i - EDGE_DATA_LENGTH + 1] = edges[i + 1]
+        for (let i = ei + EDGE_DATA_LENGTH; i < meshEdges.length; i += EDGE_DATA_LENGTH) {
+          meshEdges[i - EDGE_DATA_LENGTH] = meshEdges[i]
+          meshEdges[i - EDGE_DATA_LENGTH + 1] = meshEdges[i + 1]
         }
 
         // Subtract removed edge indexes
-        edges.length = edges.length - EDGE_DATA_LENGTH
+        meshEdges.length -= EDGE_DATA_LENGTH
         ei -= EDGE_DATA_LENGTH
         len -= EDGE_DATA_LENGTH
       }
@@ -235,9 +218,8 @@ export class MeshState {
   }
 
   clear() {
-    this.points.length = 0
-    this.edges.length = 0
-    this.meshEdges.length = 0
+    this._points.length = 0
+    this._edges.length = 0
   }
 
   generate(dist: number) {
@@ -247,11 +229,11 @@ export class MeshState {
       throw new Error(`generatePCloud: dist:${dist}`)
     }
 
-    const points = this.points
-    const edges = this.edges
-    const origPoints = this.loopState.pointsFlatArray
-    const origLoopLength = this.loopState.loopLengthes
-    const origEdges = this.loopState.edgesFlatArray
+    const points = this._points
+    const edges = this._edges
+    const origPoints = this._loopState.pointsFlatArray
+    const origLoopLength = this._loopState.loopLengthes
+    const origEdges = this._loopState.edgesFlatArray
 
     // Copy loops as edges
     for (let li = 0 ; li < origLoopLength.length; li++) {
@@ -309,10 +291,13 @@ export class MeshState {
       }
     }
 
-    const pointsLength = points.length
+    const basePointsLength = points.length
+    const baseEdgesLength = edges.length
+
+    this._edgesLengthes[MeshState.BASE_EDGES_INDEX] = baseEdgesLength
 
     // Point cloud
-    const aabb = this.loopState.getAABB()
+    const aabb = this._loopState.getAABB()
     const loopMinDist = dist * 1.1
     const edgeMinDist = dist * 1.1
     const xstep = dist
@@ -329,10 +314,10 @@ export class MeshState {
 
       for (let y = aabb[1] + yoffset + xi2 * hystep, yi = 0; y < aabb[3]; y += ystep, yi++) {
         if (
-          !this.loopState.isPointInsideAllLoops(x, y) ||
-          this.loopState.findLoopEdgeNearby(x, y, loopMinDist) !== null ||
-          this.loopState.findEdgeNearby(x, y, edgeMinDist) !== null ||
-          this.loopState.findEdgePointNearby(x, y, edgeMinDist) !== null
+          !this._loopState.isPointInsideAllLoops(x, y) ||
+          this._loopState.findLoopEdgeNearby(x, y, loopMinDist) !== null ||
+          this._loopState.findEdgeNearby(x, y, edgeMinDist) !== null ||
+          this._loopState.findEdgePointNearby(x, y, edgeMinDist) !== null
         ) {
           lpi = -1
           strides[currentStrideIndex].push(lpi)
@@ -375,26 +360,43 @@ export class MeshState {
       strides[(currentStrideIndex + 1) % strides.length].length = 0
     }
 
-    const meshEdges = this.meshEdges
+    const pCloudPointsLength = points.length
+    const pCloudEdgesLength = edges.length
 
-    const maxEdgeLen1 = dist * dist * 32
-    const maxEdgeLen2 = dist * dist * 16
+    this._edgesLengthes[MeshState.PCLOUD_EDGES_INDEX] = pCloudEdgesLength
 
-    for (let pi = 0; pi < pointsLength; pi += MeshState.POINT_DATA_LENGTH) {
-      for (let pii = 0; pii < pointsLength; pii += MeshState.POINT_DATA_LENGTH) {
+    const maxEdgeLenToBase = dist * dist * 32
+    const maxEdgeLenToPCloud = dist * dist * 16
+
+    // Begin from all Base points
+    for (let pi = 0; pi < basePointsLength; pi += MeshState.POINT_DATA_LENGTH) {
+      // To all Base points
+      for (let pii = 0; pii < basePointsLength; pii += MeshState.POINT_DATA_LENGTH) {
         if (pi === pii) {
           continue
         }
 
-        if (len2(points[pi], points[pi + 1], points[pii], points[pii + 1]) > maxEdgeLen1) {
+        // Limit possible edge length
+        if (len2(points[pi], points[pi + 1], points[pii], points[pii + 1]) > maxEdgeLenToBase) {
           continue
         }
 
-        if (this.doesEdgeExists(pi, pii)) {
+        if (
+          // Base edges range
+          this.doesEdgeExists(pi, pii, 0, baseEdgesLength) ||
+          // Mesh edges range
+          this.doesEdgeExists(pi, pii, pCloudEdgesLength, edges.length)
+        ) {
           continue
         }
 
-        if (this.doesIntersectEdge(pi, pii)) {
+        // Discard over-subdivision edges
+        if (this.isAnyPointNearbyEdge(pi, pii, 0, basePointsLength)) {
+          continue
+        }
+
+        // Base edges length
+        if (this.doesIntersectEdge(pi, pii, 0, baseEdgesLength)) {
           continue
         }
 
@@ -402,40 +404,50 @@ export class MeshState {
           continue
         }
 
-        if (this.isAnyPointNearbyEdge(pi, pii)) {
+        // Point cloud edges range
+        if (this.doesIntersectEdge(pi, pii, baseEdgesLength, pCloudEdgesLength)) {
           continue
         }
 
-        meshEdges.push(pi, pii)
+        edges.push(pi, pii)
       }
 
-      for (let pii = pointsLength; pii < points.length; pii += MeshState.POINT_DATA_LENGTH) {
-        if (len2(points[pi], points[pi + 1], points[pii], points[pii + 1]) > maxEdgeLen2) {
+      // To all pCloud points
+      for (let pii = basePointsLength; pii < pCloudPointsLength; pii += MeshState.POINT_DATA_LENGTH) {
+        // Limit edge length
+        if (len2(points[pi], points[pi + 1], points[pii], points[pii + 1]) > maxEdgeLenToPCloud) {
           continue
         }
 
-        if (this.doesIntersectEdge(pi, pii)) {
+        // Base edges length
+        if (this.doesIntersectEdge(pi, pii, 0, baseEdgesLength)) {
           continue
         }
 
-        meshEdges.push(pi, pii)
+        // Point cloud edges range
+        if (this.doesIntersectEdge(pi, pii, baseEdgesLength, pCloudEdgesLength)) {
+          continue
+        }
+
+        edges.push(pi, pii)
       }
     }
 
     // Discard phase
     const tempNumbers: number[] = []
 
-    for (let mei = 0, len = meshEdges.length; mei < len;) {
+    for (let mei = pCloudEdgesLength, len = edges.length; mei < len;) {
       const shorterEdgeIndex = this.discardLongerMeshEdges(mei, tempNumbers)
 
       if (shorterEdgeIndex !== null) {
-        const t0 = meshEdges[mei]
-        const t1 = meshEdges[mei + 1]
+        // Swap edge points
+        const t0 = edges[mei]
+        const t1 = edges[mei + 1]
 
-        meshEdges[mei] = meshEdges[shorterEdgeIndex]
-        meshEdges[mei + 1] = meshEdges[shorterEdgeIndex + 1]
-        meshEdges[shorterEdgeIndex] = t0
-        meshEdges[shorterEdgeIndex + 1] = t1
+        edges[mei] = edges[shorterEdgeIndex]
+        edges[mei + 1] = edges[shorterEdgeIndex + 1]
+        edges[shorterEdgeIndex] = t0
+        edges[shorterEdgeIndex + 1] = t1
 
         continue
       }
@@ -443,10 +455,10 @@ export class MeshState {
       if (tempNumbers.length > 0) {
         // console.log('LONGER EDGES', `${indices[i] / 2} -> ${indices[i + 1] / 2}`, tempNumbers.map((i) => `${indices[i] / 2} -> ${indices[i + 1] / 2}`))
         this.discardEdges(tempNumbers)
-        len -= MeshState.MESH_EDGE_DATA_LENGTH * tempNumbers.length
+        len -= MeshState.EDGE_DATA_LENGTH * tempNumbers.length
       }
 
-      mei += MeshState.MESH_EDGE_DATA_LENGTH
+      mei += MeshState.EDGE_DATA_LENGTH
     }
   }
 }

@@ -6,8 +6,9 @@ export class Draw {
   pointColor = 'black'
   cloudPointsColor = 'rgba(0, 0, 255, 0.6)'
   edgeColor = 'rgba(0, 0, 0, 0.4)'
+  baseEdgeColor = 'rgba(255, 0, 0, 0.8)'
   cloudEdgeColor = 'rgba(0, 0, 255, 0.4)'
-  meshColor = 'rgba(255, 128, 0, 0.4)'
+  meshEdgeColor = 'rgba(255, 128, 0, 0.4)'
   loopColor = 'red'
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx
@@ -73,29 +74,31 @@ export class Draw {
     ctx.restore()
   }
 
-  drawPCloud(state: MeshState) {
+  drawMesh(state: MeshState, viewBaseEdges: boolean, viewCloudEdges: boolean) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
+    const edges = state.edgesFlatArray
+    const edgeLengthes = state.edgesLengthes
 
     if (points.length === 0) {
       return
     }
 
-    {
-      const edges = state.edgesFlatArray
+    ctx.save()
 
-      ctx.save()
-      ctx.fillStyle = this.cloudPointsColor
+    // Points
+    ctx.fillStyle = this.cloudPointsColor
 
-      for (let i = 0; i < points.length; i += MeshState.POINT_DATA_LENGTH) {
-        ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
-      }
+    for (let i = 0; i < points.length; i += MeshState.POINT_DATA_LENGTH) {
+      ctx.fillRect(points[i] - 1, points[i + 1] - 1, 2, 2)
+    }
 
-      // Edges
-      ctx.strokeStyle = this.cloudEdgeColor
+    // Base Edges
+    if (viewBaseEdges) {
+      ctx.strokeStyle = this.baseEdgeColor
       ctx.beginPath()
 
-      for (let i = 0; i < edges.length; i += MeshState.EDGE_DATA_LENGTH) {
+      for (let i = 0; i < edgeLengthes[MeshState.BASE_EDGES_INDEX]; i += MeshState.EDGE_DATA_LENGTH) {
         const pi0 = edges[i]
         const pi1 = edges[i + 1]
 
@@ -104,36 +107,39 @@ export class Draw {
       }
 
       ctx.stroke()
-      ctx.restore()
     }
 
-    {
-      const edges = state.meshEdgesFlatArray
-
-      if (edges.length === 0) {
-        return
-      }
-
-      ctx.save()
-      ctx.strokeStyle = this.meshColor
-
+    // PCloud edges
+    if (viewCloudEdges) {
+      ctx.strokeStyle = this.cloudEdgeColor
       ctx.beginPath()
 
-      for (let i = 0; i < edges.length; i += MeshState.MESH_EDGE_DATA_LENGTH) {
+      for (let i = edgeLengthes[MeshState.BASE_EDGES_INDEX]; i < edgeLengthes[MeshState.PCLOUD_EDGES_INDEX]; i += MeshState.EDGE_DATA_LENGTH) {
         const pi0 = edges[i]
         const pi1 = edges[i + 1]
-        const p0x = points[pi0]
-        const p0y = points[pi0 + 1]
-        const p1x = points[pi1]
-        const p1y = points[pi1 + 1]
 
-        ctx.moveTo(p0x, p0y)
-        ctx.lineTo(p1x, p1y)
+        ctx.moveTo(points[pi0], points[pi0 + 1])
+        ctx.lineTo(points[pi1], points[pi1 + 1])
       }
 
       ctx.stroke()
-      ctx.restore()
     }
+
+    // Mesh edges
+    ctx.strokeStyle = this.meshEdgeColor
+    ctx.beginPath()
+
+    for (let i = edgeLengthes[MeshState.PCLOUD_EDGES_INDEX]; i < edges.length; i += MeshState.EDGE_DATA_LENGTH) {
+      const pi0 = edges[i]
+      const pi1 = edges[i + 1]
+
+      ctx.moveTo(points[pi0], points[pi0 + 1])
+      ctx.lineTo(points[pi1], points[pi1 + 1])
+    }
+
+    ctx.stroke()
+
+    ctx.restore()
   }
 
   drawPoints(state: LoopState) {

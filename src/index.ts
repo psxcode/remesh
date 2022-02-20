@@ -16,8 +16,11 @@ const saveStateBtn = document.getElementById('save-state')!
 const loadStateBtn = document.getElementById('load-state')!
 const addStateBtn = document.getElementById('add-state')!
 const pcloudScale = document.getElementById('pcloud-scale')! as HTMLInputElement
+const viewPointsCheckbox = document.getElementById('view-points')! as HTMLInputElement
 const viewLoopCheckbox = document.getElementById('view-loop')! as HTMLInputElement
 const viewEdgesCheckbox = document.getElementById('view-edges')! as HTMLInputElement
+const viewBaseEdgesCheckbox = document.getElementById('view-base-edges')! as HTMLInputElement
+const viewCloudEdgesCheckbox = document.getElementById('view-cloud-edges')! as HTMLInputElement
 const bg = document.getElementById('bg') as HTMLCanvasElement
 const fg = document.getElementById('fg') as HTMLCanvasElement
 
@@ -83,8 +86,11 @@ const render = () => {
     drawBg.drawEdges(loopState)
   }
 
-  drawBg.drawPCloud(meshState)
-  drawBg.drawPoints(loopState)
+  drawBg.drawMesh(meshState, viewBaseEdgesCheckbox.checked, viewCloudEdgesCheckbox.checked)
+
+  if (viewPointsCheckbox.checked) {
+    drawBg.drawPoints(loopState)
+  }
 }
 
 const renderInteractiveLine = (x0: number, y0: number) => {
@@ -533,8 +539,11 @@ resetBtn.addEventListener('click', () => {
   render()
 })
 
+viewPointsCheckbox.addEventListener('change', render)
 viewEdgesCheckbox.addEventListener('change', render)
 viewLoopCheckbox.addEventListener('change', render)
+viewBaseEdgesCheckbox.addEventListener('change', render)
+viewCloudEdgesCheckbox.addEventListener('change', render)
 
 fg.addEventListener('click', (e) => {
   const x = rand(e.clientX)

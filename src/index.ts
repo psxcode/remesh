@@ -19,6 +19,7 @@ const pcloudScale = document.getElementById('pcloud-scale')! as HTMLInputElement
 const viewLoopCheckbox = document.getElementById('view-loop')! as HTMLInputElement
 const viewBaseEdgesCheckbox = document.getElementById('view-base-edges')! as HTMLInputElement
 const viewCloudEdgesCheckbox = document.getElementById('view-cloud-edges')! as HTMLInputElement
+const viewTrisCheckbox = document.getElementById('view-tris')! as HTMLInputElement
 const bg = document.getElementById('bg') as HTMLCanvasElement
 const fg = document.getElementById('fg') as HTMLCanvasElement
 
@@ -81,7 +82,7 @@ const render = () => {
     drawBg.drawEdges(loopState)
   }
 
-  drawBg.drawMesh(meshState, viewBaseEdgesCheckbox.checked, viewCloudEdgesCheckbox.checked)
+  drawBg.drawMesh(meshState, viewBaseEdgesCheckbox.checked, viewCloudEdgesCheckbox.checked, viewTrisCheckbox.checked)
 
   if (viewLoopCheckbox.checked) {
     drawBg.drawPoints(loopState)
@@ -537,6 +538,7 @@ resetBtn.addEventListener('click', () => {
 viewLoopCheckbox.addEventListener('change', render)
 viewBaseEdgesCheckbox.addEventListener('change', render)
 viewCloudEdgesCheckbox.addEventListener('change', render)
+viewTrisCheckbox.addEventListener('change', render)
 
 fg.addEventListener('click', (e) => {
   const x = rand(e.clientX)

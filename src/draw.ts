@@ -9,6 +9,7 @@ export class Draw {
   baseEdgeColor = 'rgba(255, 0, 0, 0.8)'
   cloudEdgeColor = 'rgba(0, 0, 255, 0.4)'
   meshEdgeColor = 'rgba(255, 128, 0, 0.4)'
+  triColor = 'rgba(0, 128, 128, 0.2)'
   loopColor = 'red'
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx
@@ -74,11 +75,12 @@ export class Draw {
     ctx.restore()
   }
 
-  drawMesh(state: MeshState, viewBaseEdges: boolean, viewCloudEdges: boolean) {
+  drawMesh(state: MeshState, viewBaseEdges: boolean, viewCloudEdges: boolean, viewTris: boolean) {
     const ctx = this.ctx
     const points = state.pointsFlatArray
     const edges = state.edgesFlatArray
     const edgeLengthes = state.edgesLengthes
+    const tris = state.trisFlatArray
 
     if (points.length === 0) {
       return
@@ -138,6 +140,24 @@ export class Draw {
     }
 
     ctx.stroke()
+
+    // Tris
+    if (viewTris) {
+      ctx.fillStyle = this.triColor
+
+      for (let i = 0; i < tris.length; i += MeshState.TRI_DATA_LENGTH) {
+        const pi0 = tris[i]
+        const pi1 = tris[i + 1]
+        const pi2 = tris[i + 2]
+
+        ctx.beginPath()
+        ctx.moveTo(points[pi0], points[pi0 + 1])
+        ctx.lineTo(points[pi1], points[pi1 + 1])
+        ctx.lineTo(points[pi2], points[pi2 + 1])
+        ctx.closePath()
+        ctx.fill()
+      }
+    }
 
     ctx.restore()
   }

@@ -2,39 +2,39 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable sort-vars */
 import type { LoopState } from './LoopState'
-import { distToSegment2, isIntersecting, len2 } from './utils'
+import { distToSegment2, isIntersecting, len2, isPointInSegmentABBB } from './utils'
 
-const isPointInSegmentABBB = (x: number, y: number, x0: number, y0: number, x1: number, y1: number): boolean => {
-  if (x0 > x1) {
-    const t = x0
+const printEdge = (p0: number, p1: number) => {
+  return `${p0 / 2}->${p1 / 2}`
+}
+const printEdgeListItem = (edges: readonly number[], i: number) => {
+  const aei1 = edges[i + 2]
+  const aei2 = edges[i + 3]
+  const aei3 = edges[i + 4]
+  const aei4 = edges[i + 5]
 
-    x0 = x1
-    x1 = t
-  }
-
-  if (y0 > y1) {
-    const t = y0
-
-    y0 = y1
-    y1 = t
-  }
-
-  return x0 < x && x < x1 && y0 < y && y < y1
+  return `${printEdge(edges[i], edges[i + 1])},
+    [${aei1 >= 0 ? printEdge(edges[aei1], edges[aei1 + 1]) : 'NONE'}, ${aei2 >= 0 ? printEdge(edges[aei2], edges[aei2 + 1]) : 'NONE'}]
+    [${aei3 >= 0 ? printEdge(edges[aei3], edges[aei3 + 1]) : 'NONE'}, ${aei4 >= 0 ? printEdge(edges[aei4], edges[aei4 + 1]) : 'NONE'}]`
 }
 
 type PointsData = number[]
 type cPointsData = readonly number[]
 type EdgesData = number[]
+type TrisData = number[]
 type cEdgesData = readonly number[]
+type cTrisData = readonly number[]
 
 export class MeshState {
   private _loopState: LoopState
   private _points: PointsData = []
   private _edges: EdgesData = []
+  private _tris: TrisData = []
   private _edgesLengthes: number[] = [0]
 
   static readonly POINT_DATA_LENGTH = 2
   static readonly EDGE_DATA_LENGTH = 2
+  static readonly TRI_DATA_LENGTH = 3
 
   static readonly BASE_EDGES_INDEX = 0
   static readonly PCLOUD_EDGES_INDEX = 1
@@ -49,6 +49,10 @@ export class MeshState {
 
   get edgesFlatArray(): cEdgesData {
     return this._edges
+  }
+
+  get trisFlatArray(): cTrisData {
+    return this._tris
   }
 
   get edgesLengthes(): readonly number[] {
@@ -201,12 +205,14 @@ export class MeshState {
     }
 
     for (let ei = this._edgesLengthes[MeshState.PCLOUD_EDGES_INDEX], len = meshEdges.length; ei < len; ei += EDGE_DATA_LENGTH) {
-    // Find marked edges
+      // Find marked edges
       if (meshEdges[ei] === -1) {
-      // Shift next edges data over the previous
+        // Shift next edges data over the previous
         for (let i = ei + EDGE_DATA_LENGTH; i < meshEdges.length; i += EDGE_DATA_LENGTH) {
           meshEdges[i - EDGE_DATA_LENGTH] = meshEdges[i]
           meshEdges[i - EDGE_DATA_LENGTH + 1] = meshEdges[i + 1]
+          meshEdges[i - EDGE_DATA_LENGTH + 2] = meshEdges[i + 2]
+          meshEdges[i - EDGE_DATA_LENGTH + 3] = meshEdges[i + 3]
         }
 
         // Subtract removed edge indexes
@@ -220,6 +226,7 @@ export class MeshState {
   clear() {
     this._points.length = 0
     this._edges.length = 0
+    this._tris.length = 0
   }
 
   generate(dist: number) {
@@ -253,8 +260,8 @@ export class MeshState {
     }
 
     // Copy constraint edges
-    for (let ei = 0; ei < origEdges.length; ei++) {
-      edges.push(origEdges[ei])
+    for (let ei = 0; ei < origEdges.length; ei += 2) {
+      edges.push(origEdges[ei], origEdges[ei + 1])
     }
 
     // Subdivide edges
@@ -460,5 +467,132 @@ export class MeshState {
 
       mei += MeshState.EDGE_DATA_LENGTH
     }
+
+    const edgeList = MeshState.buildAdjacentEdges(edges)
+
+    // for (let i = 0; i < edgeList.length; i += 6) {
+    //   console.log(printEdgeListItem(edgeList, i))
+    // }
+
+    const clearEdgeLink = (sourceEdgeIndex: number, targetEdgeIndex: number) => {
+      if (edgeList[sourceEdgeIndex + 2] === targetEdgeIndex || edgeList[sourceEdgeIndex + 3] === targetEdgeIndex) {
+        edgeList[sourceEdgeIndex + 2] = edgeList[sourceEdgeIndex + 4]
+        edgeList[sourceEdgeIndex + 3] = edgeList[sourceEdgeIndex + 5]
+      }
+
+      edgeList[sourceEdgeIndex + 4] = -1
+      edgeList[sourceEdgeIndex + 5] = -1
+    }
+    const edgeStack: number[] = [0]
+    const tris = this._tris
+
+    while (edgeStack.length > 0) {
+      const ei0 = edgeStack.pop()!
+      const ei1 = edgeList[ei0 + 2]
+      const ei2 = edgeList[ei0 + 3]
+
+      // console.log(`${printEdgeListItem(edgeList, ei0)}`)
+
+      if (ei1 < 0) {
+        continue
+      }
+
+      clearEdgeLink(ei1, ei0)
+      clearEdgeLink(ei2, ei0)
+
+      const pi0 = edgeList[ei0]
+      const pi1 = edgeList[ei0 + 1]
+      const pi2 = (edgeList[ei1] === pi0 || edgeList[ei1] === pi1) ? edgeList[ei1 + 1] : edgeList[ei1]
+
+      // console.log(`TRI: ${pi0 / 2}->${pi1 / 2}->${pi2 / 2}`)
+
+      tris.push(pi0, pi1, pi2)
+      edgeStack.push(ei1, ei2)
+    }
+  }
+
+  private static buildAdjacentEdges(edges: cEdgesData): number[] {
+    const edgeLL: number[] = []
+    const ELL_DATA_SIZE = 6
+
+    for (let ei = 0; ei < edges.length; ei += MeshState.EDGE_DATA_LENGTH) {
+      edgeLL.push(edges[ei], edges[ei + 1], -2, -2, -2, -2)
+    }
+
+    // Find adjacent edges
+    for (let ei = 0; ei < edgeLL.length; ei += ELL_DATA_SIZE) {
+      const p00 = edgeLL[ei]
+      const p01 = edgeLL[ei + 1]
+
+      let numPtsFound = 0
+
+      for (let ei1 = 0; ei1 < edgeLL.length; ei1 += ELL_DATA_SIZE) {
+        // Skip same edge index
+        if (ei === ei1) {
+          continue
+        }
+
+        // Skip if edge has already been stored as adjacent
+        if (edgeLL[ei + 2] === ei1 || edgeLL[ei + 3] === ei1) {
+          continue
+        }
+
+        const p10 = edgeLL[ei1]
+        const p11 = edgeLL[ei1 + 1]
+
+        let otherP0 = -1
+        let otherP1 = -1
+
+        if (p00 === p10) {
+          otherP0 = p01
+          otherP1 = p11
+        }
+
+        if (p00 === p11) {
+          otherP0 = p01
+          otherP1 = p10
+        }
+
+        if (p01 === p10) {
+          otherP0 = p00
+          otherP1 = p11
+        }
+
+        if (p01 === p11) {
+          otherP0 = p00
+          otherP1 = p10
+        }
+
+        // Didnt find same point on edge
+        if (otherP0 < 0) {
+          continue
+        }
+
+        for (let ei2 = 0; ei2 < edgeLL.length; ei2 += ELL_DATA_SIZE) {
+          if (ei2 === ei || ei2 === ei1) {
+            continue
+          }
+
+          const p20 = edgeLL[ei2]
+          const p21 = edgeLL[ei2 + 1]
+
+          if ((p20 === otherP0 && p21 === otherP1) || (p21 === otherP0 && p20 === otherP1)) {
+            const offset = numPtsFound > 0 ? 2 : 0
+
+            edgeLL[ei + 2 + offset] = ei1
+            edgeLL[ei + 3 + offset] = ei2
+            ++numPtsFound
+
+            break
+          }
+        }
+
+        if (numPtsFound === 2) {
+          break
+        }
+      }
+    }
+
+    return edgeLL
   }
 }

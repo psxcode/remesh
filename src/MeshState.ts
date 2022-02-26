@@ -4,19 +4,19 @@
 import type { LoopState } from './LoopState'
 import { distToSegment2, isIntersecting, len2, isPointInSegmentABBB } from './utils'
 
-const printEdge = (p0: number, p1: number) => {
-  return `${p0 / 2}->${p1 / 2}`
-}
-const printEdgeListItem = (edges: readonly number[], i: number) => {
-  const aei1 = edges[i + 2]
-  const aei2 = edges[i + 3]
-  const aei3 = edges[i + 4]
-  const aei4 = edges[i + 5]
+// const printEdge = (p0: number, p1: number) => {
+//   return `${p0 / 2}->${p1 / 2}`
+// }
+// const printEdgeListItem = (edges: readonly number[], i: number) => {
+//   const aei1 = edges[i + 2]
+//   const aei2 = edges[i + 3]
+//   const aei3 = edges[i + 4]
+//   const aei4 = edges[i + 5]
 
-  return `${printEdge(edges[i], edges[i + 1])},
-    [${aei1 >= 0 ? printEdge(edges[aei1], edges[aei1 + 1]) : 'NONE'}, ${aei2 >= 0 ? printEdge(edges[aei2], edges[aei2 + 1]) : 'NONE'}]
-    [${aei3 >= 0 ? printEdge(edges[aei3], edges[aei3 + 1]) : 'NONE'}, ${aei4 >= 0 ? printEdge(edges[aei4], edges[aei4 + 1]) : 'NONE'}]`
-}
+//   return `${printEdge(edges[i], edges[i + 1])},
+//     [${aei1 >= 0 ? printEdge(edges[aei1], edges[aei1 + 1]) : 'NONE'}, ${aei2 >= 0 ? printEdge(edges[aei2], edges[aei2 + 1]) : 'NONE'}]
+//     [${aei3 >= 0 ? printEdge(edges[aei3], edges[aei3 + 1]) : 'NONE'}, ${aei4 >= 0 ? printEdge(edges[aei4], edges[aei4 + 1]) : 'NONE'}]`
+// }
 
 type PointsData = number[]
 type cPointsData = readonly number[]
@@ -468,50 +468,50 @@ export class MeshState {
       mei += MeshState.EDGE_DATA_LENGTH
     }
 
-    const edgeList = MeshState.buildAdjacentEdges(edges)
-
-    // for (let i = 0; i < edgeList.length; i += 6) {
-    //   console.log(printEdgeListItem(edgeList, i))
-    // }
-
-    const clearEdgeLink = (sourceEdgeIndex: number, targetEdgeIndex: number) => {
-      if (edgeList[sourceEdgeIndex + 2] === targetEdgeIndex || edgeList[sourceEdgeIndex + 3] === targetEdgeIndex) {
-        edgeList[sourceEdgeIndex + 2] = edgeList[sourceEdgeIndex + 4]
-        edgeList[sourceEdgeIndex + 3] = edgeList[sourceEdgeIndex + 5]
-      }
-
-      edgeList[sourceEdgeIndex + 4] = -1
-      edgeList[sourceEdgeIndex + 5] = -1
-    }
+    const ael = MeshState.buildAdjacentEdgesList(edges)
     const edgeStack: number[] = [0]
     const tris = this._tris
 
     while (edgeStack.length > 0) {
       const ei0 = edgeStack.pop()!
-      const ei1 = edgeList[ei0 + 2]
-      const ei2 = edgeList[ei0 + 3]
+      const ei1 = ael[ei0 + 2]
+      const ei2 = ael[ei0 + 3]
 
-      // console.log(`${printEdgeListItem(edgeList, ei0)}`)
-
+      // Skip if no adjacent
       if (ei1 < 0) {
         continue
       }
 
-      clearEdgeLink(ei1, ei0)
-      clearEdgeLink(ei2, ei0)
+      // Remove used adjacent links
+      MeshState.clearEdgeLink(ael, ei1, ei0)
+      MeshState.clearEdgeLink(ael, ei2, ei0)
 
-      const pi0 = edgeList[ei0]
-      const pi1 = edgeList[ei0 + 1]
-      const pi2 = (edgeList[ei1] === pi0 || edgeList[ei1] === pi1) ? edgeList[ei1 + 1] : edgeList[ei1]
+      const pi0 = ael[ei0]
+      const pi1 = ael[ei0 + 1]
+      const pi2 = (ael[ei1] === pi0 || ael[ei1] === pi1) ? ael[ei1 + 1] : ael[ei1]
+      const cross = (points[pi1] - points[pi0]) * (points[pi2 + 1] - points[pi0 + 1]) - (points[pi2] - points[pi0]) * (points[pi1 + 1] - points[pi0 + 1])
 
-      // console.log(`TRI: ${pi0 / 2}->${pi1 / 2}->${pi2 / 2}`)
+      if (cross < 0) {
+        tris.push(pi0, pi1, pi2)
+      } else {
+        tris.push(pi0, pi2, pi1)
+      }
 
-      tris.push(pi0, pi1, pi2)
       edgeStack.push(ei1, ei2)
     }
   }
 
-  private static buildAdjacentEdges(edges: cEdgesData): number[] {
+  private static clearEdgeLink(adjacentEdgeList: number[], sourceEdgeIndex: number, targetEdgeIndex: number) {
+    if (adjacentEdgeList[sourceEdgeIndex + 2] === targetEdgeIndex || adjacentEdgeList[sourceEdgeIndex + 3] === targetEdgeIndex) {
+      adjacentEdgeList[sourceEdgeIndex + 2] = adjacentEdgeList[sourceEdgeIndex + 4]
+      adjacentEdgeList[sourceEdgeIndex + 3] = adjacentEdgeList[sourceEdgeIndex + 5]
+    }
+
+    adjacentEdgeList[sourceEdgeIndex + 4] = -1
+    adjacentEdgeList[sourceEdgeIndex + 5] = -1
+  }
+
+  private static buildAdjacentEdgesList(edges: cEdgesData): number[] {
     const edgeLL: number[] = []
     const ELL_DATA_SIZE = 6
 

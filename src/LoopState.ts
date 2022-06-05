@@ -181,22 +181,25 @@ export class LoopState {
     this._points.length = this._loopLengthes[this._loopLengthes.length - 1]
   }
 
-  private isNewEdgeMiddleInsideAllLoops(x: number, y: number, pointIndex: number): boolean {
+  private isNewEdgeMiddleInsideAllLoops(x: number, y: number, basePointIndex: number): boolean {
     const points = this._points
+    const flatPi = LoopState.toFlatPtIndex(basePointIndex)
 
-    const px = (x + points[pointIndex]) / 2
-    const py = (y + points[pointIndex + 1]) / 2
+    const px = (x + points[flatPi]) / 2
+    const py = (y + points[flatPi + 1]) / 2
 
-    console.log('MID', points[pointIndex], x, px, points[pointIndex + 1], y, py)
+    console.log('MID', points[flatPi], x, px, points[flatPi + 1], y, py)
 
     return this.isPointInsideAllLoops(px, py)
   }
 
   private isEdgeMiddleInsideAllLoops(pi0: number, pi1: number): boolean {
     const points = this._points
+    const flPi0 = LoopState.toFlatPtIndex(pi0)
+    const flPi1 = LoopState.toFlatPtIndex(pi1)
 
-    const px = (points[pi0] + points[pi1]) / 2
-    const py = (points[pi0 + 1] + points[pi1 + 1]) / 2
+    const px = (points[flPi0] + points[flPi1]) / 2
+    const py = (points[flPi0 + 1] + points[flPi1 + 1]) / 2
 
     return this.isPointInsideAllLoops(px, py)
   }

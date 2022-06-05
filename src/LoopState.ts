@@ -165,14 +165,20 @@ export class LoopState {
 
   clearEdges() {
     this._edges.length = 0
-    this._points.length = this._loopLengthes.length === 0 ? 0 : this._loopLengthes[this._loopLengthes.length - 1]
+    // Trim points to the loop
+    this._points.length = this._loopLengthes[this._loopLengthes.length - 1]
   }
 
   clearLastLoop() {
     this.clearEdges()
 
     this._loopLengthes.length -= 1
-    this._points.length = this._loopLengthes.length === 0 ? 0 : this._loopLengthes[this._loopLengthes.length - 1]
+
+    if (this._loopLengthes.length === 0) {
+      this._loopLengthes.push(0)
+    }
+
+    this._points.length = this._loopLengthes[this._loopLengthes.length - 1]
   }
 
   private isNewEdgeMiddleInsideAllLoops(x: number, y: number, pointIndex: number): boolean {

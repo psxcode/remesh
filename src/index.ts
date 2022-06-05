@@ -28,7 +28,6 @@ fg.height = HEIGHT
 
 const BEGIN_MODE = 0
 const CREATE_LOOP_MODE = 1
-const CREATE_INNER_LOOP_MODE = 2
 const CREATE_EDGE_MODE = 3
 const DRAG_POINT_MODE = 4
 
@@ -59,7 +58,7 @@ const render = () => {
   drawBg.clearRect(0, 0, WIDTH, HEIGHT)
 
   if (viewLoopCheckbox.checked) {
-    drawBg.drawLoop(loopState, mode !== CREATE_LOOP_MODE && mode !== CREATE_INNER_LOOP_MODE)
+    drawBg.drawLoop(loopState, mode !== CREATE_LOOP_MODE)
     drawBg.drawEdges(loopState)
   }
 
@@ -97,7 +96,7 @@ const handleInteractiveLine = (e: MouseEvent) => {
 }
 
 const addLoopPoint = (x: number, y: number) => {
-  const nextPointIndex = loopState.addLoopPoint(x, y, lpi, mode === CREATE_INNER_LOOP_MODE, VERT_SNAP_DIST)
+  const nextPointIndex = loopState.addLoopPoint(x, y, lpi, VERT_SNAP_DIST)
 
   if (nextPointIndex !== null) {
     lpi = nextPointIndex
@@ -138,23 +137,23 @@ const setCreateEdgeEnabled = (isEnabled: boolean) => {
 }
 
 const setCreateLoopEnabled = (isEnabled: boolean) => {
-  if (isEnabled === false && mode !== CREATE_LOOP_MODE && mode !== CREATE_INNER_LOOP_MODE) {
+  if (isEnabled === false && mode !== CREATE_LOOP_MODE) {
     return
   }
 
   if (isEnabled) {
     const isInnerLoop = loopState.numPoints > 0
 
+    meshState.clear()
+
     if (isInnerLoop) {
-      meshState.clear()
       loopState.clearEdges()
       loopState.beginInnerLoop()
     } else {
-      meshState.clear()
       loopState.clear()
     }
 
-    mode = isInnerLoop ? CREATE_INNER_LOOP_MODE : CREATE_LOOP_MODE
+    mode = CREATE_LOOP_MODE
     lpi = -1
 
     createLoopBtn.setAttribute('active', '')
@@ -211,7 +210,6 @@ fg.addEventListener('click', (e) => {
 
   switch (mode) {
     case CREATE_LOOP_MODE:
-    case CREATE_INNER_LOOP_MODE:
       addLoopPoint(x, y)
 
       break

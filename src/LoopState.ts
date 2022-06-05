@@ -649,12 +649,14 @@ export class LoopState {
     this._loopLengthes.push(this._loopLengthes[this._loopLengthes.length - 1])
   }
 
-  addLoopPoint(x: number, y: number, lpi: number, isInnerLoop = false, SNAP_DIST = 8): number | null {
-    const pin = this.findPointNearby(x, y, SNAP_DIST)
+  addLoopPoint(x: number, y: number, lpi: number, snapDist: number): number | null {
+    const pin = this.findPointNearby(x, y, snapDist)
 
     if (pin !== null) {
       return null
     }
+
+    const isInnerLoop = this.numLoops > 1
 
     if (isInnerLoop) {
       if (!this.isNewLoopPointInsideOtherLoops(x, y)) {

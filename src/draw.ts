@@ -15,7 +15,7 @@ export class Draw {
     this.ctx = ctx
   }
 
-  drawLoop(ls: LoopState, shouldClosePath: boolean) {
+  drawLoop(ls: LoopState, shouldCloseLastLoop: boolean) {
     const ctx = this.ctx
     const points = ls.pointsFlatArray
 
@@ -39,7 +39,7 @@ export class Draw {
         ctx.lineTo(points[i], points[i + 1])
       }
 
-      if (!isLastLoop || shouldClosePath) {
+      if (!isLastLoop || shouldCloseLastLoop) {
         ctx.closePath()
       }
 

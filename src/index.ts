@@ -581,14 +581,13 @@ fg.addEventListener('mousedown', (e) => {
     return
   }
 
-  mode = DRAG_POINT_MODE
-
   const x = e.clientX
   const y = e.clientY
 
   const pi = loopState.findPointNearby(x, y, VERT_SNAP_DIST)
 
   if (pi !== null) {
+    mode = DRAG_POINT_MODE
     lpi = pi
   }
 })

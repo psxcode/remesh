@@ -4,6 +4,9 @@
   "main": "index.js",
   "author": "psxcode <psxcode@gmail.com> (https://github.com/psxcode)",
   "license": "MIT",
+  "scripts": {
+    "start": "webpack serve --open"
+  },
   "devDependencies": {
     "@babel/core": "^7.16.7",
     "@babel/preset-env": "^7.16.7",

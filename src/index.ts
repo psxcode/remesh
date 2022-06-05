@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
 import { LoopState } from './LoopState'
 import { MeshState } from './MeshState'
+import { Save } from './Save'
 import { Draw } from './draw'
 
 const WIDTH = 640
@@ -12,9 +13,6 @@ const resetBtn = document.getElementById('reset')!
 const createLoopBtn = document.getElementById('create-loop')!
 const createEdgeBtn = document.getElementById('create-edge')!
 const createPCloudBtn = document.getElementById('create-pcloud')!
-const saveStateBtn = document.getElementById('save-state')!
-const loadStateBtn = document.getElementById('load-state')!
-const addStateBtn = document.getElementById('add-state')!
 const pcloudScale = document.getElementById('pcloud-scale')! as HTMLInputElement
 const viewLoopCheckbox = document.getElementById('view-loop')! as HTMLInputElement
 const viewBaseEdgesCheckbox = document.getElementById('view-base-edges')! as HTMLInputElement
@@ -41,8 +39,6 @@ let mode = BEGIN_MODE
 const loopState = new LoopState()
 const meshState = new MeshState(loopState)
 let lpi = -1
-
-let stored: { [id: string]: string } = {}
 
 const resetState = () => {
   loopState.clear()
@@ -88,6 +84,14 @@ const render = () => {
     drawBg.drawPoints(loopState)
   }
 }
+
+void new Save({
+  doc: document,
+  storage: localStorage,
+  ls: loopState,
+  render,
+  reset: resetState,
+})
 
 const renderInteractiveLine = (x0: number, y0: number) => {
   if (lpi < 0) {
@@ -608,152 +612,3 @@ fg.addEventListener('mouseup', (e) => {
 
   render()
 })
-
-const clearActiveStates = () => {
-  document.querySelectorAll('.state-item').forEach((n) => n.classList.remove('active'))
-}
-
-const saveAllData = () => {
-  localStorage.setItem('state', JSON.stringify(stored))
-}
-
-const loadState = (id: string) => {
-  const serState = stored[id]
-
-  if (serState == null) {
-    console.error(`No such id: ${id}`)
-  }
-
-  resetState()
-
-  loopState.deserialize(serState)
-
-  render()
-}
-
-const removeStoredItem = (id: string) => {
-  delete stored[id]
-
-  const items = document.querySelectorAll('.state-item')
-
-  for (let i = 0; i < items.length; i++) {
-    if (items[i].getAttribute('data-id') === id) {
-      items[i].parentElement!.removeChild(items[i])
-    }
-  }
-
-  saveAllData()
-}
-
-const createStateElement = (id: string) => {
-  const templ = document.getElementById('state-template') as HTMLTemplateElement
-
-  const el = templ.content.cloneNode(true) as Element
-  const item = el.querySelector('li')!
-  const text = el.querySelector('span')!
-  const close = el.querySelector('button')!
-
-  item.setAttribute('data-id', id)
-  item.addEventListener('click', (e) => {
-    const el = e.target as Element
-
-    if (el.tagName !== 'LI') {
-      return
-    }
-
-    clearActiveStates()
-    el.classList.add('active')
-  })
-
-  close.addEventListener('click', () => {
-    removeStoredItem(id)
-  })
-
-  text.textContent = id
-
-  return el
-}
-
-const tryLoadAllData = () => {
-  const data = localStorage.getItem('state')
-
-  if (data === null) {
-    return
-  }
-
-  try {
-    stored = JSON.parse(data)
-  } catch {
-    console.error('Cannot parse data')
-    console.error(data)
-
-    return
-  }
-
-  const list = document.getElementById('state-list')!
-
-  list.innerHTML = ''
-
-  const storedIds = Object.keys(stored)
-
-  for (let i = 0; i < storedIds.length; i++) {
-    const el = createStateElement(storedIds[i])
-
-    list.appendChild(el)
-  }
-
-  if (storedIds.length > 0) {
-    list.firstElementChild!.classList.add('active')
-    loadState(storedIds[0])
-  }
-}
-
-const getRandomString = () => {
-  return Math.random().toString(36).substring(2, 6)
-}
-
-addStateBtn.addEventListener('click', () => {
-  const id = getRandomString()
-
-  document.getElementById('state-list')?.appendChild(createStateElement(id))
-})
-
-const getActiveItemId = () => {
-  const items = document.querySelectorAll('.state-item')
-
-  for (let i = 0; i < items.length; i++) {
-    if (items[i].classList.contains('active')) {
-      return items[i].getAttribute('data-id')
-    }
-  }
-
-  return null
-}
-
-saveStateBtn.addEventListener('click', () => {
-  const activeItemId = getActiveItemId()
-
-  if (activeItemId === null) {
-    console.error('No active id')
-
-    return
-  }
-
-  stored[activeItemId] = loopState.serialize()
-
-  saveAllData()
-})
-
-loadStateBtn.addEventListener('click', () => {
-  const activeItemId = getActiveItemId()
-
-  if (activeItemId === null) {
-    console.error('No active id')
-
-    return
-  }
-
-  loadState(activeItemId)
-})
-
-tryLoadAllData()

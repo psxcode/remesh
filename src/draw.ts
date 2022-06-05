@@ -15,20 +15,20 @@ export class Draw {
     this.ctx = ctx
   }
 
-  drawLoop(state: LoopState, shouldClosePath: boolean) {
+  drawLoop(ls: LoopState, shouldClosePath: boolean) {
     const ctx = this.ctx
-    const points = state.pointsFlatArray
+    const points = ls.pointsFlatArray
 
-    if (state.getNumLoopPoints(0) === 0) {
+    if (ls.getNumLoopPoints(0) === 0) {
       return
     }
 
     ctx.save()
     ctx.strokeStyle = this.loopColor
 
-    for (let i = 0, numLoops = state.numLoops; i < numLoops; i++) {
-      const loopStart = state.getNumLoopPoints(i - 1)
-      const loopEnd = state.getNumLoopPoints(i)
+    for (let i = 0, numLoops = ls.numLoops; i < numLoops; i++) {
+      const loopStart = ls.getNumLoopPoints(i - 1)
+      const loopEnd = ls.getNumLoopPoints(i)
       const isLastLoop = i === numLoops - 1
 
       ctx.beginPath()
@@ -49,10 +49,10 @@ export class Draw {
     ctx.restore()
   }
 
-  drawEdges(state: LoopState) {
+  drawEdges(ls: LoopState) {
     const ctx = this.ctx
-    const points = state.pointsFlatArray
-    const edges = state.edgesFlatArray
+    const points = ls.pointsFlatArray
+    const edges = ls.edgesFlatArray
 
     if (edges.length === 0) {
       return

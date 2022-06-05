@@ -16,6 +16,21 @@ export class LoopState {
   static readonly POINT_DATA_LENGTH = 2
   static readonly EDGE_DATA_LENGTH = 2
 
+  private printPoint(ptIndex: number) {
+    return `pt: ${ptIndex}`
+  }
+
+  private printLoopEdge(ptIndex: number) {
+    return `${ptIndex}->${this.wrapLoopIndex(ptIndex, 1)}`
+  }
+
+  private printEdge(edgeIndex: number) {
+    const ei = edgeIndex * 2
+    const edges = this.edgesFlatArray
+
+    return `edge: ${edgeIndex}, ${edges[ei] / 2}->${(edges[ei + 1]) / 2}`
+  }
+
   private static toFlatPtIndex(ptIndex: number): number {
     return ptIndex * this.POINT_DATA_LENGTH
   }
@@ -150,7 +165,7 @@ export class LoopState {
 
   clearEdges() {
     this._edges.length = 0
-    this._points.length = this._loopLengthes[this._loopLengthes.length - 1]
+    this._points.length = this._loopLengthes.length === 0 ? 0 : this._loopLengthes[this._loopLengthes.length - 1]
   }
 
   clearLastLoop() {
@@ -160,23 +175,24 @@ export class LoopState {
     this._points.length = this._loopLengthes.length === 0 ? 0 : this._loopLengthes[this._loopLengthes.length - 1]
   }
 
-  validate() {
-    const points = this.pointsFlatArray
-    const edges = this.edgesFlatArray
+  private isNewEdgeMiddleInsideAllLoops(x: number, y: number, pointIndex: number): boolean {
+    const points = this._points
 
-    for (let i = 0; i < points.length; i++) {
-      if (points[i] === null) {
-        console.error('POINTS_ERROR')
-        console.log(points)
-      }
-    }
+    const px = (x + points[pointIndex]) / 2
+    const py = (y + points[pointIndex + 1]) / 2
 
-    for (let i = 0; i < edges.length; i += LoopState.EDGE_DATA_LENGTH) {
-      if (edges[i] === edges[i + 1]) {
-        console.error('EDGES_ERROR')
-        console.log(edges)
-      }
-    }
+    console.log('MID', points[pointIndex], x, px, points[pointIndex + 1], y, py)
+
+    return this.isPointInsideAllLoops(px, py)
+  }
+
+  private isEdgeMiddleInsideAllLoops(pi0: number, pi1: number): boolean {
+    const points = this._points
+
+    const px = (points[pi0] + points[pi1]) / 2
+    const py = (points[pi0 + 1] + points[pi1 + 1]) / 2
+
+    return this.isPointInsideAllLoops(px, py)
   }
 
   isPointInsideAllLoops(x: number, y: number): boolean {
@@ -194,7 +210,7 @@ export class LoopState {
     return true
   }
 
-  isNewLoopPointInsideOtherLoops(x: number, y: number): boolean {
+  private isNewLoopPointInsideOtherLoops(x: number, y: number): boolean {
     if (!this.isPointInsideLoop(x, y, 0, this._loopLengthes[0])) {
       return false
     }
@@ -209,7 +225,7 @@ export class LoopState {
     return true
   }
 
-  findLoopEdgeNearby(x: number, y: number, dist = 8): number | null {
+  findLoopEdgeNearby(x: number, y: number, dist: number): number | null {
     if (this.numLoopPoints < 3) {
       return null
     }
@@ -225,7 +241,7 @@ export class LoopState {
     return null
   }
 
-  findEdgeNearby(x: number, y: number, dist = 8): number | null {
+  findEdgeNearby(x: number, y: number, dist: number): number | null {
     const points = this.pointsFlatArray
     const edges = this.edgesFlatArray
     const dist2 = dist * dist
@@ -264,7 +280,7 @@ export class LoopState {
      ((pi0 + 1) % numLoopPoints === pi1 || (pi1 + 1) % numLoopPoints === pi0)
   }
 
-  doesNewLoopEdgeIntersectOtherLoops(x: number, y: number, basePointIndex: number): boolean {
+  private doesNewLoopEdgeIntersectOtherLoops(x: number, y: number, basePointIndex: number): boolean {
     const points = this.pointsFlatArray
     const bpi = LoopState.toFlatPtIndex(basePointIndex)
     const x0 = points[bpi]
@@ -289,7 +305,7 @@ export class LoopState {
     return false
   }
 
-  findIntersectionWithEdge(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
+  private findIntersectionWithEdge(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
     const bpi = LoopState.toFlatPtIndex(basePointIndex)
     const points = this.pointsFlatArray
     const edges = this.edgesFlatArray
@@ -297,8 +313,9 @@ export class LoopState {
     const x0 = points[bpi]
     const y0 = points[bpi + 1]
 
-    const flatEdgeIndexes: number[] = []
-    const intersectPoints: Point[] = []
+    let xPt: Point
+    let xDist: number | null = null
+    let xEdgeIndex: number
 
     // Collect edge intersections
     for (let i = 0; i < edges.length; i += LoopState.EDGE_DATA_LENGTH) {
@@ -312,45 +329,27 @@ export class LoopState {
       const pt = getSegmentIntersectionPoint(x0, y0, x, y, points[pi0], points[pi0 + 1], points[pi1], points[pi1 + 1])
 
       if (pt !== null) {
-        intersectPoints.push(pt)
-        flatEdgeIndexes.push(i)
+        const l = len2(x0, y0, pt[0], pt[1])
+
+        if (xDist === null || l < xDist) {
+          xPt = pt
+          xDist = l
+          xEdgeIndex = i
+        }
       }
     }
 
-    if (intersectPoints.length === 0) {
+    if (xDist === null) {
       return null
     }
 
-    if (intersectPoints.length === 1) {
-      return {
-        index: LoopState.toEdgeIndex(flatEdgeIndexes[0]),
-        point: intersectPoints[0],
-      }
-    }
-
-    // Get closest intersection
-    let pt = intersectPoints[0]
-    let minI = 0
-    let minL = len2(x0, y0, pt[0], pt[1])
-
-    for (let i = 1; i < intersectPoints.length; i++) {
-      pt = intersectPoints[i]
-
-      const l = len2(x0, y0, pt[0], pt[1])
-
-      if (l < minL) {
-        minL = l
-        minI = i
-      }
-    }
-
     return {
-      index: LoopState.toEdgeIndex(flatEdgeIndexes[minI]),
-      point: intersectPoints[minI],
+      index: LoopState.toEdgeIndex(xEdgeIndex!),
+      point: xPt!,
     }
   }
 
-  findIntersectionWithLoop(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
+  private findIntersectionWithLoop(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
     if (this.numLoopPoints < 3) {
       return null
     }
@@ -408,7 +407,7 @@ export class LoopState {
     }
   }
 
-  doesPointBelongToEdge(edgeIndex: number, pointIndex: number): boolean {
+  private doesPointBelongToEdge(edgeIndex: number, pointIndex: number): boolean {
     const edges = this.edgesFlatArray
     const ei = LoopState.toFlatEdgeIndex(edgeIndex)
     const pi = LoopState.toFlatPtIndex(pointIndex)
@@ -455,7 +454,7 @@ export class LoopState {
     return false
   }
 
-  isAnyPointNearbyNewEdge(tx: number, ty: number, basePointIndex: number, dist = 8): boolean {
+  isAnyPointNearbyNewEdge(tx: number, ty: number, basePointIndex: number, dist: number): boolean {
     const points = this._points
     const dist2 = dist * dist
     const flBpi = LoopState.toFlatPtIndex(basePointIndex)
@@ -484,7 +483,7 @@ export class LoopState {
     return false
   }
 
-  findPointNearbyOnEdge(x: number, y: number, edgeIndex: number, dist = 8): number | null {
+  private findPointNearbyOnEdge(x: number, y: number, edgeIndex: number, dist = 8): number | null {
     const points = this.pointsFlatArray
     const edges = this.edgesFlatArray
     const ei = LoopState.toFlatEdgeIndex(edgeIndex)
@@ -503,7 +502,7 @@ export class LoopState {
     return null
   }
 
-  findPointNearbyOnLoop(x: number, y: number, loopPointIndex: number, dist = 8): number | null {
+  private findPointNearbyOnLoop(x: number, y: number, loopPointIndex: number, dist = 8): number | null {
     const points = this.pointsFlatArray
     const pi0 = LoopState.toFlatPtIndex(loopPointIndex)
     const pi1 = this.wrapLoopIndex(pi0, LoopState.POINT_DATA_LENGTH)
@@ -650,7 +649,27 @@ export class LoopState {
     this._loopLengthes.push(this._loopLengthes[this._loopLengthes.length - 1])
   }
 
-  addLoopPoint(x: number, y: number): number {
+  addLoopPoint(x: number, y: number, lpi: number, isInnerLoop = false, SNAP_DIST = 8): number | null {
+    const pin = this.findPointNearby(x, y, SNAP_DIST)
+
+    if (pin !== null) {
+      return null
+    }
+
+    if (isInnerLoop) {
+      if (!this.isNewLoopPointInsideOtherLoops(x, y)) {
+      // console.log('OUTSIDE')
+
+        return null
+      }
+
+      if (this.doesNewLoopEdgeIntersectOtherLoops(x, y, lpi)) {
+      // console.log('INTERSECT')
+
+        return null
+      }
+    }
+
     if (this.numPoints > this.numLoopPoints) {
       throw new Error(`addLoopPoint: numPoints:${this.numPoints}, numLoopPoints:${this.numLoopPoints}`)
     }
@@ -661,7 +680,328 @@ export class LoopState {
     return this.numPoints - 1
   }
 
-  addEdgePoint(x: number, y: number): number {
+  private isBadNewEdge(x: number, y: number, lastPointIndex: number, snapDist: number): boolean {
+    const isAnyPointNearbyEdge = this.isAnyPointNearbyNewEdge(x, y, lastPointIndex, snapDist)
+    const isEdgeMiddleOutside = !this.isNewEdgeMiddleInsideAllLoops(x, y, lastPointIndex)
+
+    if (isAnyPointNearbyEdge) {
+      console.log('IS ANY POINT NEARBY')
+    }
+
+    if (isEdgeMiddleOutside) {
+      console.log('IS MIDDLE OUTSIDE')
+    }
+
+    return isAnyPointNearbyEdge || isEdgeMiddleOutside
+  }
+
+  private isBadEdge(pi0: number, pi1: number, snapDist?: number): boolean {
+    const isSamePoint = pi0 === pi1
+    const isExistingEdge = this.isExistingEdge(pi0, pi1)
+    const isExistingLoopEdge = this.isExistingLoopEdge(pi0, pi1)
+    const isAnyPointNearbyEdge = this.isAnyPointNearbyEdge(pi0, pi1, snapDist)
+    const isEdgeMiddleOutside = !this.isEdgeMiddleInsideAllLoops(pi0, pi1)
+
+    if (isSamePoint) {
+      console.log('IS SAME POINT')
+    }
+
+    if (isExistingEdge) {
+      console.log('IS EXISTING EDGE')
+    }
+
+    if (isExistingLoopEdge) {
+      console.log('IS EXISTING LOOP EDGE')
+    }
+
+    if (isAnyPointNearbyEdge) {
+      console.log('IS ANY POINT NEARBY')
+    }
+
+    if (isEdgeMiddleOutside) {
+      console.log('IS MIDDLE OUTSIDE')
+    }
+
+    return isSamePoint ||
+      isExistingEdge ||
+      isExistingLoopEdge ||
+      isAnyPointNearbyEdge ||
+      isEdgeMiddleOutside
+  }
+
+  addConstraintPoint(x: number, y: number, lastPointIndex: number, snapDist: number): number | null {
+  // If first point
+    if (lastPointIndex === -1) {
+    // console.log('FIRST_POINT')
+
+      // Try find point nearby
+      {
+        const pin = this.findPointNearby(x, y, snapDist)
+
+        if (pin !== null) {
+        // console.log('  POINT_NEARBY', printPoint(pin))
+          return pin
+        }
+      }
+
+      // Try to find edge nearby
+      {
+        const ein = this.findEdgeNearby(x, y, snapDist)
+
+        if (ein !== null) {
+        // console.log('  EDGE_NEARBY', printEdge(ein))
+
+          const [px, py] = this.projToEdge(x, y, ein)
+
+          if (this.isAnyPointNearbyNewEdge(px, py, lastPointIndex, snapDist)) {
+          // console.log('    BAD_EDGE')
+
+            return null
+          }
+
+          return this.insertPointIntoEdge(px, py, ein)
+        }
+      }
+
+      // Try to find loop edge nearby
+      {
+        const ein = this.findLoopEdgeNearby(x, y, snapDist)
+
+        if (ein !== null) {
+        // console.log('  LOOP_NEARBY', printLoopEdge(ein))
+
+          const [px, py] = this.projToLoop(x, y, ein)
+
+          if (this.isAnyPointNearbyNewEdge(px, py, lastPointIndex, snapDist)) {
+          // console.log('    BAD_EDGE')
+
+            return null
+          }
+
+          return this.insertPointIntoLoop(px, py, ein)
+        }
+      }
+
+      if (this.isPointInsideAllLoops(x, y)) {
+      // console.log('  GOOD_POINT')
+        return this.addEdgePoint(x, y)
+      }
+
+      // console.log('  OUTSIDE_LOOP')
+
+      return null
+    }
+
+    // Not first point
+    // Find if intersecting existing constraints
+    // console.log('NEXT_POINT')
+
+    {
+      const ix = this.findIntersectionWithEdge(x, y, lastPointIndex)
+
+      if (ix !== null) {
+      // console.log('  EDGE_INTERSECT', printEdge(ix.index))
+
+        const { point: [px, py], index } = ix
+        const pin = this.findPointNearbyOnEdge(px, py, index, snapDist)
+
+        if (pin !== null) {
+        // console.log('    POINT_NEARBY', printPoint(pin))
+
+          if (this.isBadEdge(lastPointIndex, pin)) {
+          // console.log('      BAD_EDGE')
+
+            return null
+          }
+
+          this.addEdge(lastPointIndex, pin)
+
+          return pin
+        }
+
+        if (
+          this.isAnyPointNearbyNewEdge(px, py, lastPointIndex, snapDist)
+        ) {
+        // console.log('    BAD_EDGE')
+
+          return null
+        }
+
+        const npi = this.insertPointIntoEdge(px, py, index)
+
+        this.addEdge(lastPointIndex, npi)
+
+        return npi
+      }
+    }
+
+    // Find if intersecting loop
+    {
+      const ix = this.findIntersectionWithLoop(x, y, lastPointIndex)
+
+      if (ix !== null) {
+        console.log('  INTERSECT_LOOP', this.printLoopEdge(ix.index))
+
+        const { point: [px, py], index } = ix
+        const pin = this.findPointNearbyOnLoop(px, py, index, snapDist)
+
+        if (pin !== null) {
+          console.log('    POINT_NEARBY', this.printPoint(pin))
+
+          if (this.isBadEdge(lastPointIndex, pin, snapDist)) {
+            console.log('      BAD_EDGE')
+
+            return null
+          }
+
+          this.addEdge(lastPointIndex, pin)
+
+          return pin
+        }
+
+        if (
+          this.isBadNewEdge(px, py, lastPointIndex, snapDist)
+        ) {
+          console.log('    BAD_EDGE')
+
+          return null
+        }
+
+        const npi = this.insertPointIntoLoop(px, py, index)
+
+        this.addEdge(
+          lastPointIndex >= npi ? lastPointIndex + 1 : lastPointIndex,
+          npi
+        )
+
+        return npi
+      }
+    }
+
+    // Find if point is nearby
+    {
+      const pin = this.findPointNearby(x, y, snapDist)
+
+      if (pin !== null) {
+      // console.log('  POINT_NEARBY', printPoint(pin))
+
+        if (this.isBadEdge(lastPointIndex, pin)) {
+        // console.log('    BAD_EDGE')
+
+          return null
+        }
+
+        this.addEdge(lastPointIndex, pin)
+
+        return pin
+      }
+    }
+
+    // Find if constraint edge is nearby
+    {
+      const ein = this.findEdgeNearby(x, y, snapDist)
+
+      if (ein !== null) {
+      // console.log('  EDGE_NEARBY', printEdge(ein))
+
+        if (this.doesPointBelongToEdge(ein, lastPointIndex)) {
+        // console.log('    SAME_EDGE')
+
+          return null
+        }
+
+        const [px, py] = this.projToEdge(x, y, ein)
+        const pin = this.findPointNearbyOnEdge(px, py, ein, snapDist)
+
+        if (pin !== null) {
+        // console.log('    POINT_NEARBY', printPoint(pin))
+
+          if (this.isBadEdge(lastPointIndex, pin)) {
+          // console.log('      BAD_EDGE')
+
+            return null
+          }
+
+          this.addEdge(lastPointIndex, pin)
+
+          return pin
+        }
+
+        if (this.isAnyPointNearbyNewEdge(px, py, lastPointIndex, snapDist)) {
+        // console.log('    BAD_EDGE')
+
+          return null
+        }
+
+        const npi = this.insertPointIntoEdge(px, py, ein)
+
+        this.addEdge(lastPointIndex, npi)
+
+        return npi
+      }
+    }
+
+    // Find if loop edge is nearby
+    {
+      const ein = this.findLoopEdgeNearby(x, y, snapDist)
+
+      if (ein !== null) {
+      // console.log('  LOOP_NEARBY', printLoopEdge(ein))
+
+        const [px, py] = this.projToLoop(x, y, ein)
+        const pin = this.findPointNearbyOnLoop(px, py, ein, snapDist)
+
+        if (pin !== null) {
+        // console.log('    POINT_NEARBY', printPoint(pin))
+
+          if (this.isBadEdge(lastPointIndex, pin)) {
+            // console.log('      BAD_EDGE')
+
+            return null
+          }
+
+          this.addEdge(lastPointIndex, pin)
+
+          return pin
+        }
+
+        if (this.isAnyPointNearbyNewEdge(px, py, lastPointIndex, snapDist)) {
+        // console.log('    BAD_EDGE')
+
+          return null
+        }
+
+        const npi = this.insertPointIntoLoop(px, py, ein)
+
+        this.addEdge(
+          lastPointIndex >= npi ? lastPointIndex + 1 : lastPointIndex,
+          npi
+        )
+
+        return npi
+      }
+    }
+
+    // Standalone point
+    if (this.isPointInsideAllLoops(x, y)) {
+    // console.log('  GOOD_POINT')
+
+      if (this.isAnyPointNearbyNewEdge(x, y, lastPointIndex, snapDist)) {
+      // console.log('    BAD_EDGE')
+
+        return null
+      }
+
+      this.addEdge(lastPointIndex, this.numPoints)
+
+      return this.addEdgePoint(x, y)
+    }
+
+    // console.log('  OUTSIDE_LOOP')
+    return null
+  }
+
+  private addEdgePoint(x: number, y: number): number {
     this._points.push(x, y)
 
     return this.numPoints - 1

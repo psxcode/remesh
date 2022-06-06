@@ -227,6 +227,7 @@ export class MeshState {
     this._points.length = 0
     this._edges.length = 0
     this._tris.length = 0
+    this._edgesLengthes = [0]
   }
 
   generate(dist: number) {
@@ -468,9 +469,10 @@ export class MeshState {
       mei += MeshState.EDGE_DATA_LENGTH
     }
 
-    const ael = MeshState.buildAdjacentEdgesList(edges)
+    const ael = MeshState.buildAdjacentEdgesList(points, edges)
     const edgeStack: number[] = [0]
     const tris = this._tris
+    let infiniteLoopCheck = 0
 
     while (edgeStack.length > 0) {
       const ei0 = edgeStack.pop()!
@@ -498,7 +500,46 @@ export class MeshState {
       }
 
       edgeStack.push(ei1, ei2)
+
+      if (++infiniteLoopCheck > ael.length * 2) {
+        console.log('not quitting')
+
+        break
+      }
     }
+  }
+
+  private static checkTriangleHasPointInside(pi0: number, pi1: number, pi2: number, points: cPointsData): boolean {
+    const p0x = points[pi0]
+    const p0y = points[pi0 + 1]
+    const p1x = points[pi1]
+    const p1y = points[pi1 + 1]
+    const p2x = points[pi2]
+    const p2y = points[pi2 + 1]
+
+    for (let i = 0; i < points.length; i += this.POINT_DATA_LENGTH) {
+      if (i === pi0 || i === pi1 || i === pi2) {
+        continue
+      }
+
+      const px = points[i]
+      const py = points[i + 1]
+
+      const s = (p0x - p2x) * (py - p2y) - (p0y - p2y) * (px - p2x)
+      const t = (p1x - p0x) * (py - p0y) - (p1y - p0y) * (px - p0x)
+
+      if ((s < 0) !== (t < 0) && s !== 0 && t !== 0) {
+        continue
+      }
+
+      const d = (p2x - p1x) * (py - p1y) - (p2y - p1y) * (px - p1x)
+
+      if (d === 0 || (d < 0) === (s + t <= 0)) {
+        return true
+      }
+    }
+
+    return false
   }
 
   private static clearEdgeLink(adjacentEdgeList: number[], sourceEdgeIndex: number, targetEdgeIndex: number) {
@@ -511,7 +552,7 @@ export class MeshState {
     adjacentEdgeList[sourceEdgeIndex + 5] = -1
   }
 
-  private static buildAdjacentEdgesList(edges: cEdgesData): number[] {
+  private static buildAdjacentEdgesList(points: cPointsData, edges: cEdgesData): number[] {
     const edgeLL: number[] = []
     const ELL_DATA_SIZE = 6
 
@@ -546,19 +587,13 @@ export class MeshState {
         if (p00 === p10) {
           otherP0 = p01
           otherP1 = p11
-        }
-
-        if (p00 === p11) {
+        } else if (p00 === p11) {
           otherP0 = p01
           otherP1 = p10
-        }
-
-        if (p01 === p10) {
+        } else if (p01 === p10) {
           otherP0 = p00
           otherP1 = p11
-        }
-
-        if (p01 === p11) {
+        } else if (p01 === p11) {
           otherP0 = p00
           otherP1 = p10
         }
@@ -569,6 +604,7 @@ export class MeshState {
         }
 
         for (let ei2 = 0; ei2 < edgeLL.length; ei2 += ELL_DATA_SIZE) {
+          // Skip same edge index
           if (ei2 === ei || ei2 === ei1) {
             continue
           }
@@ -577,6 +613,11 @@ export class MeshState {
           const p21 = edgeLL[ei2 + 1]
 
           if ((p20 === otherP0 && p21 === otherP1) || (p21 === otherP0 && p20 === otherP1)) {
+            // Check if any other point is inside triangle
+            if (MeshState.checkTriangleHasPointInside(p00, p01, otherP1, points)) {
+              break
+            }
+
             const offset = numPtsFound > 0 ? 2 : 0
 
             edgeLL[ei + 2 + offset] = ei1
@@ -587,7 +628,7 @@ export class MeshState {
           }
         }
 
-        if (numPtsFound === 2) {
+        if (numPtsFound >= 2) {
           break
         }
       }

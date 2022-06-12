@@ -10,12 +10,17 @@ export class Draw {
   cloudEdgeColor = 'rgba(0, 0, 255, 0.4)'
   meshEdgeColor = 'rgba(255, 128, 0, 0.4)'
   triColor = 'rgba(0, 128, 128, 0.2)'
-  loopColor = 'red'
-  constructor(ctx: CanvasRenderingContext2D) {
+  loopColor = 'rgba(0, 0, 0, 0.4)'
+  activeLoopColor = 'red'
+  #width = 0
+  #height = 0
+  constructor(ctx: CanvasRenderingContext2D, width: number, height: number) {
     this.ctx = ctx
+    this.#width = width
+    this.#height = height
   }
 
-  drawLoop(ls: LoopState, shouldCloseLastLoop: boolean) {
+  drawLoop(ls: LoopState, shouldCloseLastLoop: boolean, isActiveLoop: boolean) {
     const ctx = this.ctx
     const points = ls.pointsFlatArray
 
@@ -24,7 +29,7 @@ export class Draw {
     }
 
     ctx.save()
-    ctx.strokeStyle = this.loopColor
+    ctx.strokeStyle = isActiveLoop ? this.activeLoopColor : this.loopColor
 
     for (let i = 0, numLoops = ls.numLoops; i < numLoops; i++) {
       const loopStart = ls.getNumLoopPoints(i - 1)
@@ -39,7 +44,7 @@ export class Draw {
         ctx.lineTo(points[i], points[i + 1])
       }
 
-      if (!isLastLoop || shouldCloseLastLoop) {
+      if (!isLastLoop || !isActiveLoop || shouldCloseLastLoop) {
         ctx.closePath()
       }
 
@@ -207,8 +212,8 @@ export class Draw {
     ctx.restore()
   }
 
-  clearRect(x: number, y: number, width: number, height: number) {
-    this.ctx.clearRect(x, y, width, height)
+  clear() {
+    this.ctx.clearRect(0, 0, this.#width, this.#height)
   }
 }
 

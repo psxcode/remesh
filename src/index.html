@@ -12,8 +12,13 @@
       margin: 0;
       font-family: sans-serif;
     }
+    button {
+      border: 1px solid grey;
+      border-radius: 4px;
+    }
     button[active] {
       background-color: green;
+      border-color: green;
       color: white
     }
     #screen {
@@ -39,9 +44,22 @@
     .creation-group {
       display: flex;
       flex-direction: column;
+      gap: 4px;
     }
     .creation-group > input {
       width: 100%;
+    }
+
+    #loop-control {
+      display: flex;
+      gap: 4px;
+    }
+    #loop-control > button {
+      flex: 1;
+    }
+
+    #state-control {
+      padding: 20px;
     }
 
     #state-list {
@@ -92,7 +110,13 @@
   </div>
   <div id="creation">
     <button id="reset">Reset</button>
-    <button id="create-loop">Create Loop</button>
+    <div class="creation-group">
+      <button id="create-loop">Create Loop</button>
+      <div id="loop-control">
+        <button id="prev-loop">&leftarrow;</button>
+        <button id="next-loop">&rightarrow;</button>
+      </div>
+    </div>
     <button id="create-edge">Create Edge</button>
     <div class="creation-group">
       <button id="create-pcloud">Create PCloud</button>
@@ -117,7 +141,7 @@
       View Tris
     </label>
   </div>
-  <div>
+    <div id="state-control">
     <button id="save-state">Save state</button>
     <button id="load-state">Load state</button>
     <button id="add-state">Add state</button>

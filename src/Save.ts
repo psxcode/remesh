@@ -4,25 +4,27 @@ import type { LoopState } from './LoopState'
 export type SaveInit = {
   doc: Document,
   storage: Storage,
-  ls: LoopState,
-  reset: () => void,
-  render: () => void,
+  ls: LoopState[],
+  onLoadBegin: () => void,
+  onLoad: (state: string) => void,
+  onComplete: () => void,
 }
 
 export class Save {
-  #data: { [id: string]: string } = {}
-  #doc: Document
-  #storage: Storage
-  #ls: LoopState
-  #doReset: () => void
-  #doRender: () => void
+  #doc: SaveInit['doc']
+  #storage: SaveInit['storage']
+  #ls: SaveInit['ls']
+  #onLoadBeginCb: SaveInit['onLoadBegin']
+  #onLoadCb: SaveInit['onLoad']
+  #onCompleteCb: SaveInit['onComplete']
 
-  constructor({ doc, storage, ls, render, reset }: SaveInit) {
+  constructor({ doc, storage, ls, onLoad, onLoadBegin, onComplete }: SaveInit) {
     this.#doc = doc
     this.#storage = storage
     this.#ls = ls
-    this.#doReset = reset
-    this.#doRender = render
+    this.#onLoadBeginCb = onLoadBegin
+    this.#onLoadCb = onLoad
+    this.#onCompleteCb = onComplete
 
     const saveStateBtn = this.#doc.getElementById('save-state')!
     const loadStateBtn = this.#doc.getElementById('load-state')!
@@ -40,10 +42,6 @@ export class Save {
 
   #clearActiveStates() {
     this.#doc.querySelectorAll('.state-item').forEach((n) => n.classList.remove('active'))
-  }
-
-  #saveAllData() {
-    this.#storage.setItem('state', JSON.stringify(this.#data))
   }
 
   #getActiveItemId() {
@@ -88,8 +86,6 @@ export class Save {
   }
 
   #removeStoredItem(id: string) {
-    delete this.#data[id]
-
     const items = document.querySelectorAll('.state-item')
 
     for (let i = 0; i < items.length; i++) {
@@ -97,62 +93,42 @@ export class Save {
         items[i].parentElement!.removeChild(items[i])
       }
     }
-
-    this.#saveAllData()
   }
 
   #tryLoadAllData() {
-    const data = localStorage.getItem('state')
-
-    if (data === null) {
-      return
-    }
-
-    try {
-      this.#data = JSON.parse(data)
-    } catch {
-      console.error('Cannot parse data')
-      console.error(data)
-
-      return
-    }
-
     const list = document.getElementById('state-list')!
+    const numItems = this.#storage.length
 
     list.innerHTML = ''
 
-    const storedIds = Object.keys(this.#data)
+    for (let i = 0; i < numItems; i++) {
+      const id = this.#storage.key(i)
 
-    for (let i = 0; i < storedIds.length; i++) {
-      const el = this.#createStateElement(storedIds[i])
+      if (id === null) {
+        continue
+      }
+
+      const el = this.#createStateElement(id)
 
       list.appendChild(el)
     }
 
-    if (storedIds.length > 0) {
-      list.firstElementChild!.classList.add('active')
-      this.#loadState(storedIds[0])
-    }
-  }
+    list.firstElementChild?.classList.add('active')
 
-  #loadState(id: string) {
-    const serState = this.#data[id]
-
-    if (serState == null) {
-      console.error(`No such id: ${id}`)
+    if (numItems === 0) {
+      this.#onAddState()
     }
 
-    this.#doReset()
-
-    this.#ls.deserialize(serState)
-
-    this.#doRender()
+    this.#onLoadState()
   }
 
   #onAddState = () => {
     const id = this.#getRandomString()
 
-    this.#doc.getElementById('state-list')?.appendChild(this.#createStateElement(id))
+    const list = this.#doc.getElementById('state-list')!
+
+    list.appendChild(this.#createStateElement(id))
+    list.lastElementChild!.classList.add('active')
   }
 
   #onSaveState = () => {
@@ -164,9 +140,12 @@ export class Save {
       return
     }
 
-    this.#data[activeItemId] = this.#ls.serialize()
-
-    this.#saveAllData()
+    this.#storage.setItem(
+      activeItemId,
+      JSON.stringify(
+        this.#ls.map((s) => s.serialize())
+      )
+    )
   }
 
   #onLoadState = () => {
@@ -178,7 +157,25 @@ export class Save {
       return
     }
 
-    this.#loadState(activeItemId)
+    if (activeItemId === null) {
+      return
+    }
+
+    const data = this.#storage.getItem(activeItemId)
+
+    if (data === null) {
+      return
+    }
+
+    const serState = JSON.parse(data) as string[]
+
+    this.#onLoadBeginCb()
+
+    serState.forEach((s) => {
+      this.#onLoadCb(s)
+    })
+
+    return this.#onCompleteCb()
   }
 }
 

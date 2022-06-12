@@ -26,7 +26,6 @@ type cEdgesData = readonly number[]
 type cTrisData = readonly number[]
 
 export class MeshState {
-  private _loopState: LoopState
   private _points: PointsData = []
   private _edges: EdgesData = []
   private _tris: TrisData = []
@@ -39,9 +38,7 @@ export class MeshState {
   static readonly BASE_EDGES_INDEX = 0
   static readonly PCLOUD_EDGES_INDEX = 1
 
-  constructor(loopState: LoopState) {
-    this._loopState = loopState
-  }
+  constructor() {}
 
   get pointsFlatArray(): cPointsData {
     return this._points
@@ -101,10 +98,10 @@ export class MeshState {
     return false
   }
 
-  private isMiddleOutsideLoop(p0: number, p1: number): boolean {
+  private isMiddleOutsideLoop(p0: number, p1: number, loop: LoopState): boolean {
     const points = this._points
 
-    return !this._loopState.isPointInsideAllLoops(
+    return !loop.isPointInsideAllLoops(
       (points[p0] + points[p1]) * 0.5,
       (points[p0 + 1] + points[p1 + 1]) * 0.5
     )
@@ -230,7 +227,7 @@ export class MeshState {
     this._edgesLengthes = [0]
   }
 
-  generate(dist: number) {
+  generate(loop: LoopState, dist: number) {
     this.clear()
 
     if (!Number.isInteger(dist) || dist <= 0) {
@@ -239,9 +236,9 @@ export class MeshState {
 
     const points = this._points
     const edges = this._edges
-    const origPoints = this._loopState.pointsFlatArray
-    const origLoopLength = this._loopState.loopLengthes
-    const origEdges = this._loopState.edgesFlatArray
+    const origPoints = loop.pointsFlatArray
+    const origLoopLength = loop.loopLengthes
+    const origEdges = loop.edgesFlatArray
 
     // Copy loops as edges
     for (let li = 0 ; li < origLoopLength.length; li++) {
@@ -305,7 +302,7 @@ export class MeshState {
     this._edgesLengthes[MeshState.BASE_EDGES_INDEX] = baseEdgesLength
 
     // Point cloud
-    const aabb = this._loopState.getAABB()
+    const aabb = loop.getAABB()
     const loopMinDist = dist * 1.1
     const edgeMinDist = dist * 1.1
     const xstep = dist
@@ -322,10 +319,10 @@ export class MeshState {
 
       for (let y = aabb[1] + yoffset + xi2 * hystep, yi = 0; y < aabb[3]; y += ystep, yi++) {
         if (
-          !this._loopState.isPointInsideAllLoops(x, y) ||
-          this._loopState.findLoopEdgeNearby(x, y, loopMinDist) !== null ||
-          this._loopState.findEdgeNearby(x, y, edgeMinDist) !== null ||
-          this._loopState.findEdgePointNearby(x, y, edgeMinDist) !== null
+          !loop.isPointInsideAllLoops(x, y) ||
+          loop.findLoopEdgeNearby(x, y, loopMinDist) !== null ||
+          loop.findEdgeNearby(x, y, edgeMinDist) !== null ||
+          loop.findEdgePointNearby(x, y, edgeMinDist) !== null
         ) {
           lpi = -1
           strides[currentStrideIndex].push(lpi)
@@ -408,7 +405,7 @@ export class MeshState {
           continue
         }
 
-        if (this.isMiddleOutsideLoop(pi, pii)) {
+        if (this.isMiddleOutsideLoop(pi, pii, loop)) {
           continue
         }
 

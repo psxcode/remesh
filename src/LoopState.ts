@@ -655,7 +655,7 @@ export class LoopState {
     this._loopLengthes.push(this._loopLengthes[this._loopLengthes.length - 1])
   }
 
-  addLoopPoint(x: number, y: number, lpi: number, snapDist: number): number | null {
+  addLoopPoint(x: number, y: number, basePointIndex: number | null, snapDist: number): number | null {
     const pin = this.findPointNearby(x, y, snapDist)
 
     if (pin !== null) {
@@ -671,7 +671,7 @@ export class LoopState {
         return null
       }
 
-      if (this.doesNewLoopEdgeIntersectOtherLoops(x, y, lpi)) {
+      if (basePointIndex !== null && this.doesNewLoopEdgeIntersectOtherLoops(x, y, basePointIndex)) {
         // console.log('INTERSECT')
 
         return null
@@ -701,9 +701,9 @@ export class LoopState {
       !this.isEdgeMiddleInsideAllLoops(pi0, pi1)
   }
 
-  addConstraintPoint(x: number, y: number, basePointIndex: number, snapDist: number): number | null {
+  addConstraintPoint(x: number, y: number, basePointIndex: number | null, snapDist: number): number | null {
   // If first point
-    if (basePointIndex === -1) {
+    if (basePointIndex === null) {
     // console.log('FIRST_POINT')
 
       // Try find point nearby
@@ -725,12 +725,6 @@ export class LoopState {
 
           const [px, py] = this.projToEdge(x, y, ein)
 
-          if (this.isAnyPointNearbyNewEdge(px, py, basePointIndex, snapDist)) {
-          // console.log('    BAD_EDGE')
-
-            return null
-          }
-
           return this.insertPointIntoEdge(px, py, ein)
         }
       }
@@ -743,12 +737,6 @@ export class LoopState {
         // console.log('  LOOP_NEARBY', printLoopEdge(ein))
 
           const [px, py] = this.projToLoop(x, y, ein)
-
-          if (this.isAnyPointNearbyNewEdge(px, py, basePointIndex, snapDist)) {
-          // console.log('    BAD_EDGE')
-
-            return null
-          }
 
           return this.insertPointIntoLoop(px, py, ein)
         }

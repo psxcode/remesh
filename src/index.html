@@ -115,22 +115,6 @@
     <canvas id="fg" width="640" height="480"></canvas>
     <canvas id="res-bg" width="640" height="480"></canvas>
   </div>
-  <div id="creation">
-    <button id="reset">Reset</button>
-    <div class="creation-group">
-      <button id="create-loop">Create Loop</button>
-      <div id="loop-control">
-        <button id="prev-loop">&leftarrow;</button>
-        <button id="next-loop">&rightarrow;</button>
-      </div>
-    </div>
-    <button id="create-edge">Create Edge</button>
-    <div class="creation-group">
-      <button id="create-pcloud">Create Mesh</button>
-      <input id="pcloud-scale" type="range" min="5" max="50" value="12" step="1">
-    </div>
-    <button id="merge-loops">Merge Loops</button>
-  </div>
   <div id="view">
     <label>
       <input id="view-loop" type="checkbox" checked>
@@ -148,6 +132,22 @@
       <input id="view-tris" type="checkbox" checked>
       View Tris
     </label>
+  </div>
+  <div id="creation">
+    <button id="reset">Reset</button>
+    <div class="creation-group">
+      <button id="create-loop">Create Loop</button>
+      <div id="loop-control">
+        <button id="prev-loop">&leftarrow;</button>
+        <button id="next-loop">&rightarrow;</button>
+      </div>
+    </div>
+    <button id="create-edge">Create Edge</button>
+    <div class="creation-group">
+      <button id="create-pcloud">Create Mesh</button>
+      <input id="pcloud-scale" type="range" min="5" max="50" value="12" step="1">
+    </div>
+    <button id="merge-loops">Merge Loops</button>
   </div>
   <div id="state-control">
     <button id="save-state">Save state</button>

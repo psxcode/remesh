@@ -116,15 +116,17 @@ export class LoopState {
     return null
   }
 
-  private isPointInsideLoop(x: number, y: number, flatLoopStart: number, flatLoopEnd: number): boolean {
+  private isPointInsideLoop(x: number, y: number, loopIndex: number): boolean {
     const points = this._points
-    let x0 = points[flatLoopEnd - LoopState.POINT_DATA_LENGTH]
-    let y0 = points[flatLoopEnd - LoopState.POINT_DATA_LENGTH + 1]
+    const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
+    const loopEnd = this._loopLengthes[loopIndex]
+    let x0 = points[loopEnd - LoopState.POINT_DATA_LENGTH]
+    let y0 = points[loopEnd - LoopState.POINT_DATA_LENGTH + 1]
     let x1
     let y1
     let inside = false
 
-    for (let i = flatLoopStart; i < flatLoopEnd; i += LoopState.POINT_DATA_LENGTH) {
+    for (let i = loopBegin; i < loopEnd; i += LoopState.POINT_DATA_LENGTH) {
       x1 = points[i]
       y1 = points[i + 1]
 
@@ -136,7 +138,7 @@ export class LoopState {
       y0 = y1
     }
 
-    return inside
+    return (loopIndex === 0) === inside
   }
 
   private findPointNearbyCoords(x: number, y: number, dist: number, flatFrom: number, flatTo: number): number | null {
@@ -240,28 +242,8 @@ export class LoopState {
   }
 
   isPointInsideAllLoops(x: number, y: number): boolean {
-    if (!this.isPointInsideLoop(x, y, 0, this._loopLengthes[0])) {
-      return false
-    }
-
-    for (let i = 1; i < this._loopLengthes.length; i++) {
-      // Note inverted test for inner loops
-      if (this.isPointInsideLoop(x, y, this._loopLengthes[i - 1], this._loopLengthes[i])) {
-        return false
-      }
-    }
-
-    return true
-  }
-
-  private isNewLoopPointInsideOtherLoops(x: number, y: number): boolean {
-    if (!this.isPointInsideLoop(x, y, 0, this._loopLengthes[0])) {
-      return false
-    }
-
-    for (let i = 1; i < this._loopLengthes.length - 1; i++) {
-      // Note inverted test for inner loops
-      if (this.isPointInsideLoop(x, y, this._loopLengthes[i - 1], this._loopLengthes[i])) {
+    for (let li = 1; li < this._loopLengthes.length; li++) {
+      if (!this.isPointInsideLoop(x, y, li)) {
         return false
       }
     }
@@ -727,7 +709,7 @@ export class LoopState {
     const isInnerLoop = this.numLoops > 1
 
     if (isInnerLoop) {
-      if (!this.isNewLoopPointInsideOtherLoops(x, y)) {
+      if (!this.isPointInsideAllLoops(x, y)) {
         // console.log('OUTSIDE')
 
         return null

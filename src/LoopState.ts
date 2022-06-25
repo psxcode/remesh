@@ -1,6 +1,6 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable max-params */
-import { distToSegment2, getSegmentIntersectionPoint, isIntersecting, isPointInSegmentABBB, len2, projToLine } from './utils'
+import { distToSegment2, isIntersecting, isPointInSegmentABBB, len2, projToLine } from './utils'
 
 type PointsData = number[]
 type cPointsData = readonly number[]
@@ -9,6 +9,44 @@ type cEdgesData = readonly number[]
 type Point = [number, number]
 
 export class LoopState {
+  static getSegmentIntersectionPoint(a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): [number, number] | null {
+    const v0x = a1x - a0x
+    const v0y = a1y - a0y
+    const v1x = b1x - b0x
+    const v1y = b1y - b0y
+    const cross = v0x * v1y - v1x * v0y
+
+    if (cross === 0) {
+      return null
+    } // collinear
+
+    const s02_x = a0x - b0x
+    const s02_y = a0y - b0y
+    const s_numer = v0x * s02_y - v0y * s02_x
+
+    if (s_numer < 0 === cross > 0) {
+      return null
+    } // no collision
+
+    const t_numer = v1x * s02_y - v1y * s02_x
+
+    if (t_numer < 0 === cross > 0) {
+      return null
+    } // no collision
+
+    if (s_numer > cross === cross > 0 || t_numer > cross === cross > 0) {
+      return null
+    } // no collision
+
+    // collision detected
+    const t = t_numer / cross
+
+    return [
+      a0x + (t * v0x),
+      a0y + (t * v0y),
+    ]
+  }
+
   private _points: PointsData = []
   private _loopLengthes: number[] = [0]
   private _edges: EdgesData = []
@@ -332,7 +370,7 @@ export class LoopState {
         continue
       }
 
-      const pt = getSegmentIntersectionPoint(x0, y0, x, y, points[pi0], points[pi0 + 1], points[pi1], points[pi1 + 1])
+      const pt = LoopState.getSegmentIntersectionPoint(x0, y0, x, y, points[pi0], points[pi0 + 1], points[pi1], points[pi1 + 1])
 
       if (pt !== null) {
         const l = len2(x0, y0, pt[0], pt[1])
@@ -384,7 +422,7 @@ export class LoopState {
         const lp1y = points[ptIndex + 1]
 
         if (ptIndex !== bpi && prevPtIndex !== bpi) {
-          const pt = getSegmentIntersectionPoint(bx, by, x, y, lp0x, lp0y, lp1x, lp1y)
+          const pt = LoopState.getSegmentIntersectionPoint(bx, by, x, y, lp0x, lp0y, lp1x, lp1y)
 
           if (pt !== null) {
             const ixLen = len2(bx, by, pt[0], pt[1])

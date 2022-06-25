@@ -139,7 +139,7 @@ export class LoopState {
     return inside
   }
 
-  private _findPointNearby(x: number, y: number, dist: number, flatFrom: number, flatTo: number): number | null {
+  private findPointNearbyCoords(x: number, y: number, dist: number, flatFrom: number, flatTo: number): number | null {
     const points = this._points
     const dist2 = dist * dist
 
@@ -564,11 +564,11 @@ export class LoopState {
   }
 
   findPointNearby(x: number, y: number, dist: number): number | null {
-    return LoopState.toMaybePtIndex(this._findPointNearby(x, y, dist, 0, this._points.length))
+    return LoopState.toMaybePtIndex(this.findPointNearbyCoords(x, y, dist, 0, this._points.length))
   }
 
   findEdgePointNearby(x: number, y: number, dist: number): number | null {
-    return LoopState.toMaybePtIndex(this._findPointNearby(x, y, dist, this._loopLengthes[this._loopLengthes.length - 1], this._points.length))
+    return LoopState.toMaybePtIndex(this.findPointNearbyCoords(x, y, dist, this._loopLengthes[this._loopLengthes.length - 1], this._points.length))
   }
 
   private getLoopIndex(flatPointIndex: number): number {

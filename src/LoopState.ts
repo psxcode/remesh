@@ -549,7 +549,7 @@ export class LoopState {
   private findPointNearbyOnLoop(x: number, y: number, loopPointIndex: number, dist = 8): number | null {
     const points = this.pointsFlatArray
     const pi0 = LoopState.toFlatPtIndex(loopPointIndex)
-    const pi1 = this.wrapLoopIndex(pi0, LoopState.POINT_DATA_LENGTH)
+    const pi1 = this.wrapLoopIndex(pi0, 1)
     const dist2 = dist * dist
 
     if (len2(x, y, points[pi0], points[pi0 + 1]) < dist2) {
@@ -581,13 +581,13 @@ export class LoopState {
     throw new Error(`getLoopIndex: pointIndex:${LoopState.toPtIndex(flatPointIndex)}, numLoopPoints:${this.numLoopPoints}`)
   }
 
-  private wrapLoopIndex(flatBaseIndex: number, offset: number): number {
+  private wrapLoopIndex(flatBaseIndex: number, numPointsIncrement: number): number {
     const li = this.getLoopIndex(flatBaseIndex)
     const loopStart = li === 0 ? 0 : this._loopLengthes[li - 1]
     const loopEnd = this._loopLengthes[li]
     const loopDiff = loopEnd - loopStart
 
-    return (flatBaseIndex - loopStart + offset + loopDiff) % loopDiff + loopStart
+    return (flatBaseIndex - loopStart + numPointsIncrement * LoopState.POINT_DATA_LENGTH + loopDiff) % loopDiff + loopStart
   }
 
   projToLoop(x: number, y: number, afterLoopPointIndex: number): Point {
@@ -597,7 +597,7 @@ export class LoopState {
 
     const points = this._points
     const pi = LoopState.toFlatPtIndex(afterLoopPointIndex)
-    const pii = this.wrapLoopIndex(pi, LoopState.POINT_DATA_LENGTH)
+    const pii = this.wrapLoopIndex(pi, 1)
 
     return projToLine(x, y, points[pi], points[pi + 1], points[pii], points[pii + 1])
   }

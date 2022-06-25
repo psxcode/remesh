@@ -338,7 +338,6 @@ export class Editor {
       this.#mesh.clear()
 
       if (isInnerLoop) {
-        activeLoop.clearEdges()
         activeLoop.beginInnerLoop()
       } else {
         activeLoop.clear()
@@ -350,9 +349,7 @@ export class Editor {
       Editor.createMeshBtn.setAttribute('disabled', '')
       Editor.foregroundLayer.addEventListener('mousemove', this.onFgMouseMove)
     } else {
-      if (activeLoop.numLastLoopPoints <= 2) {
-        activeLoop.clearLastLoop()
-      }
+      activeLoop.endInnerLoop()
 
       this.mode = Editor.BEGIN_MODE
       Editor.createLoopBtn.removeAttribute('active')

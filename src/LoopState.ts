@@ -682,15 +682,39 @@ export class LoopState {
   }
 
   beginInnerLoop() {
-    if (this.numPoints > this.numLoopPoints) {
-      throw new Error(`beginInnerLoop: numPoints:${this.numPoints}, numLoopPoints:${this.numLoopPoints}`)
-    }
-
     if (this.numLastLoopPoints < 3) {
-      throw new Error(`beginInnerLoop: numLastLoopPoints:${this.numLastLoopPoints}, numLoopPoints:${this.numLoopPoints}`)
+      this.clearLastLoop()
     }
 
+    this.clearEdges()
     this._loopLengthes.push(this._loopLengthes[this._loopLengthes.length - 1])
+    }
+
+  endInnerLoop() {
+    if (this.numLastLoopPoints < 3) {
+      this.clearLastLoop()
+
+      return
+    }
+
+    // Check last loops does not contain any loops
+    const lastLoopIndex = this.numLoops - 1
+    const pts = this.pointsFlatArray
+
+    for (let i = 1; i < this.numLoops - 1;++i) {
+      const loopBegin = this._loopLengthes[i - 1]
+      const loopEnd = this._loopLengthes[i]
+
+      for (let pi = loopBegin; pi < loopEnd; pi += LoopState.POINT_DATA_LENGTH) {
+        // If any point is outside the loop
+        if (!this.isPointInsideLoop(pts[pi], pts[pi + 1], lastLoopIndex)) {
+          // Bad last loop
+          this.clearLastLoop()
+
+          return
+        }
+      }
+    }
   }
 
   addLoopPoint(x: number, y: number, basePointIndex: number | null, snapDist: number): number | null {

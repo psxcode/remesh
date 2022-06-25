@@ -166,7 +166,7 @@ export class LoopState {
     return LoopState.toPtIndex(this._loopLengthes[this._loopLengthes.length - 1])
   }
 
-  get numLastLoopPoints() {
+  private get numLastLoopPoints() {
     const loopStart = this._loopLengthes.length <= 1 ? 0 : this._loopLengthes[this._loopLengthes.length - 2]
     const loopEnd = this._loopLengthes[this._loopLengthes.length - 1]
 
@@ -428,7 +428,7 @@ export class LoopState {
     }
 
     return {
-      index: LoopState.toEdgeIndex(xEdgeIndex),
+      index: LoopState.toLoopEdgeIndex(xEdgeIndex),
       point: xPoint,
     }
   }

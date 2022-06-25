@@ -85,7 +85,7 @@ export class Editor {
   static readonly DRAG_POINT_MODE = 4
   private mode = Editor.BEGIN_MODE
   #loops: LoopState[]
-  #mesh: MeshState | null = null
+  #mesh: MeshState
 
   activeLoop: ActiveLoop
 
@@ -104,6 +104,7 @@ export class Editor {
     this.#bg = new Draw(bg.getContext('2d')!, width, height)
     this.#fg = new Draw(fg.getContext('2d')!, width, height)
 
+    this.#mesh = new MeshState()
     this.#loops = [new LoopState()]
     this.activeLoop = new ActiveLoop(this.lastLoop)
 
@@ -216,7 +217,7 @@ export class Editor {
   private resetState = () => {
     this.#loops.forEach((s) => s.clear())
     this.#loops.length = 1
-    this.#mesh?.clear()
+    this.#mesh.clear()
     this.mode = Editor.BEGIN_MODE
     this.activeLoop.loop = this.lastLoop
 
@@ -234,14 +235,12 @@ export class Editor {
     this.#fg.clear()
     this.#bg.clear()
 
-    if (this.#mesh !== null) {
       this.#bg.drawMesh(
         this.#mesh,
         Editor.viewBaseEdgesCheckbox.checked,
         Editor.viewCloudEdgesCheckbox.checked,
         Editor.viewTrisCheckbox.checked
       )
-    }
 
     this.#loops.forEach((s) => {
       if (Editor.viewLoopCheckbox.checked) {
@@ -303,7 +302,7 @@ export class Editor {
     this.activeLoop.lpi = null
 
     if (isEnabled) {
-      this.#mesh?.clear()
+      this.#mesh.clear()
       this.mode = Editor.CREATE_EDGE_MODE
       Editor.createEdgeBtn.setAttribute('active', '')
       Editor.createLoopBtn.setAttribute('disabled', '')
@@ -336,7 +335,7 @@ export class Editor {
     if (isEnabled) {
       const isInnerLoop = activeLoop.numPoints > 0
 
-      this.#mesh?.clear()
+      this.#mesh.clear()
 
       if (isInnerLoop) {
         activeLoop.clearEdges()

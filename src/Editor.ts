@@ -119,7 +119,7 @@ export class Editor {
 
     Editor.createLoopBtn.addEventListener('click', this.onToggleCreateLoop)
     Editor.createEdgeBtn.addEventListener('click', this.onToggleCreateEdge)
-    Editor.createPCloudBtn.addEventListener('click', this.onCreatePCloud)
+    Editor.createMeshBtn.addEventListener('click', this.onCreateMesh)
     Editor.resetBtn.addEventListener('click', this.resetState)
 
     Editor.viewLoopCheckbox.addEventListener('change', this.onCheckboxChange)
@@ -147,7 +147,7 @@ export class Editor {
     return document.getElementById('create-edge')!
   }
 
-  static get createPCloudBtn() {
+  static get createMeshBtn() {
     return document.getElementById('create-pcloud')!
   }
 
@@ -223,7 +223,7 @@ export class Editor {
 
     Editor.createLoopBtn.removeAttribute('disabled')
     Editor.createEdgeBtn.removeAttribute('disabled')
-    Editor.createPCloudBtn.removeAttribute('disabled')
+    Editor.createMeshBtn.removeAttribute('disabled')
 
     Editor.createLoopBtn.removeAttribute('active')
     Editor.createEdgeBtn.removeAttribute('active')
@@ -270,7 +270,7 @@ export class Editor {
     this.#fg.drawInteractiveLine(x0, y0, x1, y1)
   }
 
-  private onCreatePCloud = () => {
+  private onCreateMesh = () => {
     const scale = Number(Editor.pcloudScale.value)
 
     if (!Number.isInteger(scale)) {
@@ -306,13 +306,13 @@ export class Editor {
       this.mode = Editor.CREATE_EDGE_MODE
       Editor.createEdgeBtn.setAttribute('active', '')
       Editor.createLoopBtn.setAttribute('disabled', '')
-      Editor.createPCloudBtn.setAttribute('disabled', '')
+      Editor.createMeshBtn.setAttribute('disabled', '')
       Editor.foregroundLayer.addEventListener('mousemove', this.onFgMouseMove)
     } else {
       this.mode = Editor.BEGIN_MODE
       Editor.createEdgeBtn.removeAttribute('active')
       Editor.createLoopBtn.removeAttribute('disabled')
-      Editor.createPCloudBtn.removeAttribute('disabled')
+      Editor.createMeshBtn.removeAttribute('disabled')
       Editor.foregroundLayer.removeEventListener('mousemove', this.onFgMouseMove)
     }
 
@@ -347,7 +347,7 @@ export class Editor {
       this.mode = Editor.CREATE_LOOP_MODE
       Editor.createLoopBtn.setAttribute('active', '')
       Editor.createEdgeBtn.setAttribute('disabled', '')
-      Editor.createPCloudBtn.setAttribute('disabled', '')
+      Editor.createMeshBtn.setAttribute('disabled', '')
       Editor.foregroundLayer.addEventListener('mousemove', this.onFgMouseMove)
     } else {
       if (activeLoop.numLastLoopPoints <= 2) {
@@ -357,7 +357,7 @@ export class Editor {
       this.mode = Editor.BEGIN_MODE
       Editor.createLoopBtn.removeAttribute('active')
       Editor.createEdgeBtn.removeAttribute('disabled')
-      Editor.createPCloudBtn.removeAttribute('disabled')
+      Editor.createMeshBtn.removeAttribute('disabled')
       Editor.foregroundLayer.removeEventListener('mousemove', this.onFgMouseMove)
     }
 

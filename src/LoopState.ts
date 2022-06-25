@@ -93,29 +93,6 @@ export class LoopState {
     return flatPtIndex !== null ? flatPtIndex / this.POINT_DATA_LENGTH : null
   }
 
-  private findSpecificLoopEdgeNearby(x: number, y: number, flatLoopStart: number, flatLoopEnd: number, dist: number): number | null {
-    const points = this._points
-    let prevI = flatLoopEnd - LoopState.POINT_DATA_LENGTH
-    let lp0x = points[prevI]
-    let lp0y = points[prevI + 1]
-    const dist2 = dist * dist
-
-    for (let i = flatLoopStart; i < flatLoopEnd; i += LoopState.POINT_DATA_LENGTH) {
-      const lp1x = points[i]
-      const lp1y = points[i + 1]
-
-      if (dist2 > distToSegment2(x, y, lp0x, lp0y, lp1x, lp1y)) {
-        return prevI
-      }
-
-      prevI = i
-      lp0x = lp1x
-      lp0y = lp1y
-    }
-
-    return null
-  }
-
   private isPointInsideLoop(x: number, y: number, loopIndex: number): boolean {
     const points = this._points
     const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
@@ -256,11 +233,27 @@ export class LoopState {
       return null
     }
 
-    for (let li = 0 ; li < this._loopLengthes.length; li++) {
-      const flei = this.findSpecificLoopEdgeNearby(x, y, li === 0 ? 0 : this._loopLengthes[li - 1], this._loopLengthes[li], dist)
+    const dist2 = dist * dist
 
-      if (flei !== null) {
-        return LoopState.toLoopEdgeIndex(flei)
+    for (let li = 0 ; li < this._loopLengthes.length; li++) {
+      const loopBegin = li === 0 ? 0 : this._loopLengthes[li - 1]
+      const loopEnd = this._loopLengthes[li]
+      const points = this._points
+      let prevI = loopEnd - LoopState.POINT_DATA_LENGTH
+      let lp0x = points[prevI]
+      let lp0y = points[prevI + 1]
+
+      for (let i = loopBegin; i < loopEnd; i += LoopState.POINT_DATA_LENGTH) {
+        const lp1x = points[i]
+        const lp1y = points[i + 1]
+
+        if (dist2 > distToSegment2(x, y, lp0x, lp0y, lp1x, lp1y)) {
+          return LoopState.toLoopEdgeIndex(prevI)
+        }
+
+        prevI = i
+        lp0x = lp1x
+        lp0y = lp1y
       }
     }
 

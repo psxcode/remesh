@@ -76,7 +76,6 @@ class ActiveLoop {
 type EditorOptions = {
   width: number,
   height: number,
-  snapDist: number,
 }
 
 export class Editor {
@@ -94,7 +93,7 @@ export class Editor {
   #fg: Draw
 
   private snapDist = 8
-  constructor({ width, height, snapDist }: EditorOptions) {
+  constructor({ width, height }: EditorOptions) {
     const bg = Editor.backgroundLayer
     const fg = Editor.foregroundLayer
 
@@ -107,7 +106,6 @@ export class Editor {
 
     this.#loops = [new LoopState()]
     this.activeLoop = new ActiveLoop(this.lastLoop)
-    this.snapDist = snapDist
 
     void new Save({
       doc: document,

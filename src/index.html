@@ -24,10 +24,19 @@
     #screen {
       position: relative;
     }
+    #bg {
+      pointer-events: none;
+    }
     #fg {
       position: absolute;
       left: 0;
       top: 0
+    }
+    #res-bg {
+      position: absolute;
+      left: 300px;
+      top: 0;
+      pointer-events: none;
     }
     #creation {
       position: absolute;
@@ -45,9 +54,6 @@
       display: flex;
       flex-direction: column;
       gap: 4px;
-    }
-    .creation-group > input {
-      width: 100%;
     }
 
     #loop-control {
@@ -107,6 +113,7 @@
   <div id="screen">
     <canvas id="bg" width="640" height="480"></canvas>
     <canvas id="fg" width="640" height="480"></canvas>
+    <canvas id="res-bg" width="640" height="480"></canvas>
   </div>
   <div id="creation">
     <button id="reset">Reset</button>
@@ -122,6 +129,7 @@
       <button id="create-pcloud">Create Mesh</button>
       <input id="pcloud-scale" type="range" min="5" max="50" value="12" step="1">
     </div>
+    <button id="merge-loops">Merge Loops</button>
   </div>
   <div id="view">
     <label>
@@ -141,7 +149,7 @@
       View Tris
     </label>
   </div>
-    <div id="state-control">
+  <div id="state-control">
     <button id="save-state">Save state</button>
     <button id="load-state">Load state</button>
     <button id="add-state">Add state</button>

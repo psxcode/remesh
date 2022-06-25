@@ -91,18 +91,23 @@ export class Editor {
 
   #bg: Draw
   #fg: Draw
+  #res: Draw
 
   private snapDist = 8
   constructor({ width, height }: EditorOptions) {
     const bg = Editor.backgroundLayer
     const fg = Editor.foregroundLayer
+    const res = Editor.resultLayer
 
     bg.width = width
     bg.height = height
     fg.width = width
     fg.height = height
+    res.width = width
+    res.height = height
     this.#bg = new Draw(bg.getContext('2d')!, width, height)
     this.#fg = new Draw(fg.getContext('2d')!, width, height)
+    this.#res = new Draw(res.getContext('2d')!, width, height)
 
     this.#mesh = new MeshState()
     this.#loops = [new LoopState()]
@@ -128,6 +133,7 @@ export class Editor {
     Editor.viewTrisCheckbox.addEventListener('change', this.onCheckboxChange)
     Editor.prevLoop.addEventListener('click', this.onPrevActiveLoopClick)
     Editor.nextLoop.addEventListener('click', this.onNextActiveLoopClick)
+    Editor.mergeLoopsBtn.addEventListener('click', this.onMergeLoopsClick)
 
     fg.addEventListener('click', this.onFgClick)
     fg.addEventListener('contextmenu', this.onFgRightClick)
@@ -179,12 +185,20 @@ export class Editor {
     return document.getElementById('bg') as HTMLCanvasElement
   }
 
+  static get resultLayer() {
+    return document.getElementById('res-bg') as HTMLCanvasElement
+  }
+
   static get nextLoop() {
     return document.getElementById('next-loop') as HTMLButtonElement
   }
 
   static get prevLoop() {
     return document.getElementById('prev-loop') as HTMLButtonElement
+  }
+
+  static get mergeLoopsBtn() {
+    return document.getElementById('merge-loops') as HTMLButtonElement
   }
 
   static rand(int: number) {
@@ -224,6 +238,7 @@ export class Editor {
     Editor.createLoopBtn.removeAttribute('disabled')
     Editor.createEdgeBtn.removeAttribute('disabled')
     Editor.createMeshBtn.removeAttribute('disabled')
+    Editor.mergeLoopsBtn.removeAttribute('disabled')
 
     Editor.createLoopBtn.removeAttribute('active')
     Editor.createEdgeBtn.removeAttribute('active')
@@ -234,13 +249,14 @@ export class Editor {
   private render() {
     this.#fg.clear()
     this.#bg.clear()
+    this.#res.clear()
 
-      this.#bg.drawMesh(
-        this.#mesh,
-        Editor.viewBaseEdgesCheckbox.checked,
-        Editor.viewCloudEdgesCheckbox.checked,
-        Editor.viewTrisCheckbox.checked
-      )
+    this.#bg.drawMesh(
+      this.#mesh,
+      Editor.viewBaseEdgesCheckbox.checked,
+      Editor.viewCloudEdgesCheckbox.checked,
+      Editor.viewTrisCheckbox.checked
+    )
 
     this.#loops.forEach((s) => {
       if (Editor.viewLoopCheckbox.checked) {
@@ -482,5 +498,20 @@ export class Editor {
     this.activeLoop.loop = this.#loops[prevIndex]
 
     this.render()
+  }
+
+  private onMergeLoopsClick = () => {
+    this.#res.clear()
+
+    if (this.#loops.length < 2) {
+      return
+    }
+
+    const ls = LoopState.mergeLoopStates(this.#loops[0], this.#loops[1], this.snapDist)
+
+    this.render()
+
+    this.#res.drawLoop(ls, true, true)
+    this.#res.drawPoints(ls)
   }
 }

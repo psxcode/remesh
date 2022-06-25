@@ -1035,11 +1035,7 @@ export class LoopState {
 
     this._points = points
     this._edges = edges
-
-    if (typeof loopLength === 'number') {
-      this._loopLengthes = [loopLength]
-    } else {
       this._loopLengthes = loopLength
-    }
+    //
   }
 }

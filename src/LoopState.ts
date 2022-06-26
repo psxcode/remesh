@@ -1,3 +1,4 @@
+/* eslint-disable sort-vars */
 /* eslint-disable no-param-reassign */
 /* eslint-disable max-params */
 import { distToSegment2, isIntersecting, isPointInSegmentABBB, len2, projToLine } from './utils'
@@ -7,6 +8,7 @@ type cPointsData = readonly number[]
 type EdgesData = number[]
 type cEdgesData = readonly number[]
 type Point = [number, number]
+type WalkDir = -1 | 1
 
 export class LoopState {
   static getSegmentIntersectionPoint(a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): [number, number] | null {
@@ -54,19 +56,19 @@ export class LoopState {
   static readonly POINT_DATA_LENGTH = 2
   static readonly EDGE_DATA_LENGTH = 2
 
-  private printPoint(ptIndex: number) {
+  private static printPoint(ptIndex: number) {
     return `pt: ${ptIndex}`
   }
 
-  private printLoopEdge(ptIndex: number) {
-    return `${ptIndex}->${this.wrapLoopIndex(ptIndex, 1)}`
+  private static printLoopEdge(ls: LoopState, ptIndex: number) {
+    return `${ptIndex}->${LoopState.toPtIndex(ls.wrapLoopIndex(LoopState.toFlatPtIndex(ptIndex), 1))}`
   }
 
-  private printEdge(edgeIndex: number) {
-    const ei = edgeIndex * 2
-    const edges = this.edgesFlatArray
+  private static printEdge(ls: LoopState, edgeIndex: number) {
+    const ei = LoopState.toFlatEdgeIndex(edgeIndex)
+    const edges = ls.edgesFlatArray
 
-    return `edge: ${edgeIndex}, ${edges[ei] / 2}->${(edges[ei + 1]) / 2}`
+    return `edge: ${edgeIndex}, ${LoopState.toPtIndex(edges[ei])}->${(LoopState.toPtIndex(edges[ei + 1]))}`
   }
 
   private static toFlatPtIndex(ptIndex: number): number {

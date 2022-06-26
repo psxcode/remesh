@@ -219,7 +219,7 @@ export class LoopState {
   }
 
   isPointInsideAllLoops(x: number, y: number): boolean {
-    for (let li = 1; li < this._loopLengthes.length; li++) {
+    for (let li = 0; li < this._loopLengthes.length; li++) {
       if (!this.isPointInsideLoop(x, y, li)) {
         return false
       }

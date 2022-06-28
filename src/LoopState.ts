@@ -9,6 +9,7 @@ type EdgesData = number[]
 type cEdgesData = readonly number[]
 type Point = [number, number]
 type WalkDir = -1 | 1
+type LoopStatePair = [LoopState, LoopState]
 
 export class LoopState {
   static getSegmentIntersectionPoint(a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): [number, number] | null {
@@ -47,6 +48,252 @@ export class LoopState {
       a0x + (t * v0x),
       a0y + (t * v0y),
     ]
+  }
+
+  static mergeLoopStates(ls0: LoopState, ls1: LoopState, snapDist: number): LoopState {
+    const lsp: LoopStatePair = [ls0, ls1]
+    const lspInv: LoopStatePair = [ls1, ls0]
+
+    /* Snap points */
+    const snapLoopPoints = (ls0: LoopState, ls1: LoopState, snapDist: number) => {
+      const points0 = ls0.pointsFlatArray
+      const points1 = ls1.pointsFlatArray
+      const dist2 = snapDist * snapDist
+
+      for (let pi0 = 0; pi0 < points0.length; pi0 += LoopState.POINT_DATA_LENGTH) {
+        const p0x = points0[pi0]
+        const p0y = points0[pi0 + 1]
+
+        for (let pi1 = 0; pi1 < points1.length; pi1 += LoopState.POINT_DATA_LENGTH) {
+          const p1x = points1[pi1]
+          const p1y = points1[pi1 + 1]
+
+          if (len2(p0x, p0y, p1x, p1y) < dist2) {
+            const xx = (p0x + p1x) / 2
+            const xy = (p0y + p1y) / 2
+
+            ls0.updatePointPosition(LoopState.toPtIndex(pi0), xx, xy)
+            ls1.updatePointPosition(LoopState.toPtIndex(pi1), xx, xy)
+          }
+        }
+      }
+    }
+
+    snapLoopPoints(ls0, ls1, snapDist)
+
+    /* Insert X points */
+    const insertIntersectionLoopPoints = ([ls0, ls1]: LoopStatePair): number => {
+      const points0 = ls0.pointsFlatArray
+      const points1 = ls1.pointsFlatArray
+      let numInsertedPoints = 0
+
+      for (let li0 = 0; li0 < ls0.numLoops; li0++) {
+        const lb0 = li0 === 0 ? 0 : ls0.loopLengthes[li0 - 1]
+        let le0 = ls0.loopLengthes[li0]
+
+        for (let li1 = 0; li1 < ls1.numLoops; li1++) {
+          const lb1 = li1 === 0 ? 0 : ls1.loopLengthes[li1 - 1]
+          let le1 = ls1.loopLengthes[li1]
+
+          for (let pi00 = lb0; pi00 < le0; pi00 += LoopState.POINT_DATA_LENGTH) {
+            const pi01 = ls0.wrapLoopIndex(pi00, 1)
+            const e0ax = points0[pi00]
+            const e0ay = points0[pi00 + 1]
+            const e0bx = points0[pi01]
+            const e0by = points0[pi01 + 1]
+
+            for (let pi10 = lb1; pi10 < le1; pi10 += LoopState.POINT_DATA_LENGTH) {
+              const pi11 = ls1.wrapLoopIndex(pi10, 1)
+              const e1ax = points1[pi10]
+              const e1ay = points1[pi10 + 1]
+              const e1bx = points1[pi11]
+              const e1by = points1[pi11 + 1]
+
+              if (
+                len2(e0ax, e0ay, e1ax, e1ay) < 1 ||
+                len2(e0ax, e0ay, e1bx, e1by) < 1 ||
+                len2(e0bx, e0by, e1ax, e1ay) < 1 ||
+                len2(e0bx, e0by, e1bx, e1by) < 1
+              ) {
+                continue
+              }
+
+              const xp = LoopState.getSegmentIntersectionPoint(e0ax, e0ay, e0bx, e0by, e1ax, e1ay, e1bx, e1by)
+
+              if (xp !== null) {
+                const [xx, xy] = xp
+
+                ls0.insertPointIntoLoop(xx, xy, LoopState.toPtIndex(pi00))
+                ls1.insertPointIntoLoop(xx, xy, LoopState.toPtIndex(pi10))
+                le0 += LoopState.POINT_DATA_LENGTH
+                le1 += LoopState.POINT_DATA_LENGTH
+                pi00 -= LoopState.POINT_DATA_LENGTH
+                ++numInsertedPoints
+
+                break
+              }
+            }
+          }
+        }
+      }
+
+      return numInsertedPoints
+    }
+
+    const numXPoints = insertIntersectionLoopPoints(lsp)
+
+    const isLoopSegmentInsideAllLoops = ([ls0, ls1]: LoopStatePair, flatLoopPtIndex: number, incDir: WalkDir): boolean => {
+      const pts = ls0.pointsFlatArray
+      const pi0 = flatLoopPtIndex
+      const pi1 = ls0.wrapLoopIndex(pi0, incDir)
+      const mx = (pts[pi0] + pts[pi1]) / 2
+      const my = (pts[pi0 + 1] + pts[pi1 + 1]) / 2
+
+      // console.log(`isLoopSegmentInsideAllLoops: ${LoopState.printLoopEdge(ls0, this.toLoopEdgeIndex(pi0))}`)
+
+      return ls1.isPointInsideAllLoops(mx, my)
+    }
+
+    const getFirstExternalLoopPointIndex = (lsp: LoopStatePair): number | null => {
+      for (let pi0 = 0, le = lsp[0].loopLengthes[0]; pi0 < le; pi0 += LoopState.POINT_DATA_LENGTH) {
+        if (!isLoopSegmentInsideAllLoops(lsp, pi0, 1)) {
+          return pi0
+        }
+      }
+
+      return null
+    }
+
+    const swapLsp = () => {
+      lsp[0] = lspInv[0]
+      lsp[1] = lspInv[1]
+      lspInv[0] = lsp[1]
+      lspInv[1] = lsp[0]
+    }
+
+    /* Find Outer loop, swap if necessary */
+    let firstOuterPointIndex = getFirstExternalLoopPointIndex(lsp)
+
+    if (firstOuterPointIndex === null) {
+      firstOuterPointIndex = getFirstExternalLoopPointIndex(lsp)
+
+      if (firstOuterPointIndex === null) {
+        throw new Error('Should not get here: Cannot find external segment')
+      }
+
+      // Swap loop states
+      swapLsp()
+    }
+
+    console.log(`BPI: ${LoopState.printPoint(LoopState.toPtIndex(firstOuterPointIndex))}`)
+
+    // Check if loops actually intersect
+    if (numXPoints === 0) {
+      return ls0
+    }
+
+    const getNumSameSidePoints = (lsp: LoopStatePair, flatPointIndex: number, flatBreakPointIndex: number | null, dir: WalkDir): number | null => {
+      const [ls0] = lsp
+      const isInner = isLoopSegmentInsideAllLoops(lsp, flatPointIndex, dir)
+      const baseLoopIndex = ls0.getLoopIndex(flatPointIndex)
+
+      // console.log(`${isInner ? 'isInner' : 'isOuter'}`)
+
+      if (flatBreakPointIndex !== null && ls0.wrapLoopIndex(flatPointIndex, dir) === flatBreakPointIndex) {
+        return null
+      }
+
+      for (let i = LoopState.POINT_DATA_LENGTH, le = ls0.loopLengthes[baseLoopIndex]; i < le; i += LoopState.POINT_DATA_LENGTH) {
+        const pi = ls0.wrapLoopIndex(flatPointIndex, LoopState.toPtIndex(i) * dir)
+        const npi = ls0.wrapLoopIndex(pi, dir)
+
+        // console.log(`${LoopState.toPtIndex(pi)}=>${LoopState.toPtIndex(npi)}`)
+
+        if (flatBreakPointIndex !== null && npi === flatBreakPointIndex) {
+          break
+        }
+
+        if (isLoopSegmentInsideAllLoops(lsp, pi, dir) !== isInner) {
+          return LoopState.toPtIndex(i)
+        }
+      }
+
+      return null
+    }
+
+    const getWalkDir = (lsp: LoopStatePair, beginPointIndex: number, isOuter: boolean): WalkDir => {
+      if (isLoopSegmentInsideAllLoops(lsp, beginPointIndex, 1) !== isOuter) {
+        return 1
+      }
+
+      if (isLoopSegmentInsideAllLoops(lsp, beginPointIndex, -1) !== isOuter) {
+        return -1
+      }
+
+      throw new Error(`Should not get here: Couldnt find ${isOuter ? 'outer' : 'inner'} segment`)
+    }
+
+    const findXPointIndexInOtherLS = ([ls0, ls1]: LoopStatePair, flatPointIndex: number): number => {
+      const pts = ls0.pointsFlatArray
+      const x = pts[flatPointIndex]
+      const y = pts[flatPointIndex + 1]
+      const pi = ls1.findPointNearbyCoords(x, y, 1, 0, ls1.numLoopPoints * LoopState.POINT_DATA_LENGTH)
+
+      // console.log(flatPointIndex, x, y)
+      // console.log(pts, ls1.pointsFlatArray)
+
+      if (pi === null) {
+        throw new Error('findXPointIndexInSecondLoopState: ')
+      }
+
+      return pi
+    }
+
+    for (let i = 0, pi0 = firstOuterPointIndex;i < 2;i++) {
+      const baseWalkOuterPts = getNumSameSidePoints(lsp, pi0, firstOuterPointIndex, 1)
+
+      if (baseWalkOuterPts === null) {
+        break
+      }
+
+      const xp0 = lsp[0].wrapLoopIndex(pi0, baseWalkOuterPts)
+      const xp1 = findXPointIndexInOtherLS(lsp, xp0)
+      const walkDir = getWalkDir(lspInv, xp1, true)
+
+      const otherWalkOuterPts = getNumSameSidePoints(lspInv, xp1, null, walkDir)
+
+      if (otherWalkOuterPts === null) {
+        throw new Error('Should not get here')
+      }
+
+      const baseWalkInnerPts = getNumSameSidePoints(lsp, xp0, null, 1)
+
+      if (baseWalkInnerPts === null) {
+        throw new Error('numWalkInnerPts === null')
+      }
+
+      {
+        const [ls0, ls1] = lsp
+        const pts = ls1.pointsFlatArray
+
+        ls0._points.splice(
+          ls0.wrapLoopIndex(xp0, 1),
+          (baseWalkInnerPts - 1) * LoopState.POINT_DATA_LENGTH
+        )
+
+        for (let i = 1; i < otherWalkOuterPts; i++) {
+          const pi = ls1.wrapLoopIndex(xp1, i * walkDir)
+
+          ls0.insertPointIntoLoop(pts[pi], pts[pi + 1], LoopState.toPtIndex(xp0) + i - 1)
+        }
+      }
+
+      const xp11 = lsp[1].wrapLoopIndex(xp1, otherWalkOuterPts * walkDir)
+
+      pi0 = findXPointIndexInOtherLS(lspInv, xp11)
+    }
+
+    return ls0
   }
 
   private _points: PointsData = []
@@ -665,7 +912,7 @@ export class LoopState {
 
     this.clearEdges()
     this._loopLengthes.push(this._loopLengthes[this._loopLengthes.length - 1])
-    }
+  }
 
   endInnerLoop() {
     if (this.numLastLoopPoints < 3) {
@@ -1030,7 +1277,7 @@ export class LoopState {
 
     this._points = points
     this._edges = edges
-      this._loopLengthes = loopLength
+    this._loopLengthes = loopLength
     //
   }
 }

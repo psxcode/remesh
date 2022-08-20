@@ -1,7 +1,7 @@
 /* eslint-disable sort-vars */
 /* eslint-disable no-param-reassign */
 /* eslint-disable max-params */
-import { distToSegment2, isIntersecting, isPointInSegmentABBB, len2, projToLine } from './utils'
+import { distToSegment2, isIntersecting, isPointInSegmentABBB, len2, projToLine, splice } from './utils'
 
 type PointsData = number[]
 type cPointsData = readonly number[]
@@ -192,7 +192,7 @@ export class LoopState {
       return ls0
     }
 
-    const getNumSameSidePoints = (lsp: LoopStatePair, flatPointIndex: number, flatBreakPointIndex: number | null, dir: WalkDir): number | null => {
+    const getNextXPointIndex = (lsp: LoopStatePair, flatPointIndex: number, flatBreakPointIndex: number | null, dir: WalkDir): number | null => {
       const [ls0] = lsp
       const isInner = isLoopSegmentInsideAllLoops(lsp, flatPointIndex, dir)
       const baseLoopIndex = ls0.getLoopIndex(flatPointIndex)
@@ -214,7 +214,7 @@ export class LoopState {
         }
 
         if (isLoopSegmentInsideAllLoops(lsp, pi, dir) !== isInner) {
-          return LoopState.toPtIndex(i)
+          return pi
         }
       }
 
@@ -249,49 +249,46 @@ export class LoopState {
       return pi
     }
 
-    for (let i = 0, pi0 = firstOuterPointIndex;i < 2;i++) {
-      const baseWalkOuterPts = getNumSameSidePoints(lsp, pi0, firstOuterPointIndex, 1)
+    ls0.shiftLoop(0, 2)
 
-      if (baseWalkOuterPts === null) {
-        break
-      }
+    // for (let i = 0, pi0 = firstOuterPointIndex;i < 2;i++) {
+    //   const xp0 = getNextXPointIndex(lsp, pi0, firstOuterPointIndex, 1)
 
-      const xp0 = lsp[0].wrapLoopIndex(pi0, baseWalkOuterPts)
-      const xp1 = findXPointIndexInOtherLS(lsp, xp0)
-      const walkDir = getWalkDir(lspInv, xp1, true)
+    //   if (xp0 === null) {
+    //     break
+    //   }
 
-      const otherWalkOuterPts = getNumSameSidePoints(lspInv, xp1, null, walkDir)
+    //   const xp1 = findXPointIndexInOtherLS(lsp, xp0)
+    //   const walkDir = getWalkDir(lspInv, xp1, true)
 
-      if (otherWalkOuterPts === null) {
-        throw new Error('Should not get here')
-      }
+    //   const xp11 = getNextXPointIndex(lspInv, xp1, null, walkDir)
 
-      const baseWalkInnerPts = getNumSameSidePoints(lsp, xp0, null, 1)
+    //   if (xp11 === null) {
+    //     throw new Error('Should not get here')
+    //   }
 
-      if (baseWalkInnerPts === null) {
-        throw new Error('numWalkInnerPts === null')
-      }
+    //   const xp00 = findXPointIndexInOtherLS(lspInv, xp11)
 
-      {
-        const [ls0, ls1] = lsp
-        const pts = ls1.pointsFlatArray
+    //   // const xp0Inner = getNextXPointIndex(lsp, xp0, null, 1)
 
-        ls0._points.splice(
-          ls0.wrapLoopIndex(xp0, 1),
-          (baseWalkInnerPts - 1) * LoopState.POINT_DATA_LENGTH
-        )
+    //   // if (xp0Inner === null) {
+    //   //   throw new Error('Should not get here')
+    //   // }
 
-        for (let i = 1; i < otherWalkOuterPts; i++) {
-          const pi = ls1.wrapLoopIndex(xp1, i * walkDir)
+    //   // if (xp0Inner !== xp00) {
+    //   //   console.log('Other cycle detected')
+    //   // }
 
-          ls0.insertPointIntoLoop(pts[pi], pts[pi + 1], LoopState.toPtIndex(xp0) + i - 1)
-        }
-      }
+    //   const numRemoved = lsp[0].removeLoopPointsBetween(xp0, xp00)
 
-      const xp11 = lsp[1].wrapLoopIndex(xp1, otherWalkOuterPts * walkDir)
+    //   // for (let i = 1; i < xp11; i++) {
+    //   //   const pi = ls1.wrapLoopIndex(xp1, i * walkDir)
 
-      pi0 = findXPointIndexInOtherLS(lspInv, xp11)
-    }
+    //   //   ls0.insertPointIntoLoop(lsp[0]._points[pi], lsp[0]._points[pi + 1], LoopState.toPtIndex(xp0) + i - 1)
+    //   // }
+
+    //   pi0 = xp00 - numRemoved
+    // }
 
     return ls0
   }
@@ -834,6 +831,149 @@ export class LoopState {
     const epi1 = edges[ei + 1]
 
     return projToLine(x, y, points[epi0], points[epi0] + 1, points[epi1], points[epi1] + 1)
+  }
+
+  private removeEdge(flatEdgeIndex: number) {
+    const edges = this._edges
+
+    console.log(`REMOVE EDGE: ${LoopState.printEdge(this, LoopState.toEdgeIndex(flatEdgeIndex))}`)
+
+    for (let ei = flatEdgeIndex; ei < flatEdgeIndex + LoopState.EDGE_DATA_LENGTH; ei++) {
+      const pi = edges[ei]
+
+      // Check if point is Edge point
+      if (LoopState.toPtIndex(pi) >= this.numLoopPoints) {
+        let isPointUsed = false
+
+        // Fond if point is used in another edge
+        for (let i = 0; i < edges.length; i += LoopState.EDGE_DATA_LENGTH) {
+          if (i !== flatEdgeIndex && (edges[i] === pi || edges[i + 1] === pi)) {
+            console.log('IS_USED')
+            isPointUsed = true
+
+            break
+          }
+        }
+
+        if (!isPointUsed) {
+          splice(this._points, pi, LoopState.POINT_DATA_LENGTH)
+
+          // Fix edge indexes
+          for (let i = 0; i < edges.length; i++) {
+            if (edges[i] > pi) {
+              edges[i] -= LoopState.POINT_DATA_LENGTH
+            }
+          }
+        }
+      }
+    }
+
+    // Remove edge
+    splice(this._edges, flatEdgeIndex, LoopState.EDGE_DATA_LENGTH)
+  }
+
+  private removeLoopPoint(flatPointIndex: number) {
+    const edges = this._edges
+
+    console.log(`REMOVE LOOP POINT: ${LoopState.toPtIndex(flatPointIndex)}`)
+
+    // Remove edges
+    for (let i = 0, l = edges.length; i < l; i += LoopState.EDGE_DATA_LENGTH) {
+      if (edges[i] === flatPointIndex || edges[i + 1] === flatPointIndex) {
+        this.removeEdge(i)
+        l -= LoopState.EDGE_DATA_LENGTH
+      }
+    }
+
+    // Remove point
+    splice(this._points, flatPointIndex, LoopState.POINT_DATA_LENGTH)
+
+    // Fix edge indexes
+    for (let i = 0; i < edges.length; i++) {
+      if (edges[i] > flatPointIndex) {
+        edges[i] -= LoopState.POINT_DATA_LENGTH
+      }
+    }
+
+    // Fix loops lengthes
+    for (let li = this.getLoopIndex(flatPointIndex); li < this._loopLengthes.length; li++) {
+      this._loopLengthes[li] -= LoopState.POINT_DATA_LENGTH
+    }
+  }
+
+  private shiftLoop(loopIndex: number, numPointsIncrement: number) {
+    const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
+    const loopEnd = this._loopLengthes[loopIndex]
+    const numData = loopEnd - loopBegin
+    const pts = this._points
+
+    if (numPointsIncrement < 0) {
+      for (let i = loopBegin; i < loopEnd; i++) {
+        pts[i] = pts[(i - loopBegin - numPointsIncrement + numData) % numData + loopBegin]
+      }
+    } else {
+      for (let i = loopEnd - 1; i >= loopBegin; i--) {
+        pts[i] = pts[(i - loopBegin + numPointsIncrement + numData) % numData + loopBegin]
+      }
+    }
+
+    const edges = this._edges
+
+    // Fix edges
+    for (let i = 0; i < edges.length; i++) {
+      const pi = edges[i]
+
+      if (pi >= loopBegin || pi < loopEnd) {
+        edges[i] = (pi - loopBegin + numPointsIncrement + numData) % numData + loopBegin
+      }
+    }
+  }
+
+  private moveLoopToEdgeBetween(flatFromIndex: number, flatToIndex: number) {
+    const loopIndex = this.getLoopIndex(flatFromIndex)
+    const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
+    const loopEnd = this._loopLengthes[loopIndex]
+    const bpi = this.wrapLoopIndex(flatFromIndex, 1)
+    const epi = this.wrapLoopIndex(flatToIndex, -1)
+  }
+
+  private removeLoopPointsBetween(flatFromIndex: number, flatToIndex: number): number {
+    const loopIndex = this.getLoopIndex(flatFromIndex)
+    const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
+    const loopEnd = this._loopLengthes[loopIndex]
+    const bpi = this.wrapLoopIndex(flatFromIndex, 1)
+    const epi = this.wrapLoopIndex(flatToIndex, -1)
+
+    console.log(`REMOVE PTS:${LoopState.toPtIndex(bpi)} => ${LoopState.toPtIndex(epi)}`)
+
+    if (this.getLoopIndex(flatToIndex) !== loopIndex) {
+      throw new Error(`Loop indexes does not match: ${LoopState.toPtIndex(flatFromIndex)} => ${LoopState.toPtIndex(flatToIndex)}`)
+    }
+
+    let numRemoved = 0
+
+    if (bpi > epi) {
+      const numRemoveBegin = epi - loopBegin + LoopState.POINT_DATA_LENGTH
+      const numRemoveEnd = loopEnd - bpi
+
+      numRemoved = numRemoveBegin + numRemoveEnd
+
+      for (let i = 0; i < numRemoveBegin; i += LoopState.POINT_DATA_LENGTH) {
+        this.removeLoopPoint(loopBegin)
+      }
+
+      for (let i = 0; i < numRemoveEnd; i += LoopState.POINT_DATA_LENGTH) {
+        this.removeLoopPoint(bpi)
+      }
+    } else {
+      numRemoved = epi - bpi + LoopState.POINT_DATA_LENGTH
+
+      for (let i = 0; i < numRemoved; i += LoopState.POINT_DATA_LENGTH) {
+        this.removeLoopPoint(bpi)
+      }
+    }
+
+    return numRemoved
   }
 
   private insertPointIntoLoop(x: number, y: number, afterPointIndex: number): number {

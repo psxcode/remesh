@@ -99,3 +99,38 @@ export const isPointInSegmentABBB = (x: number, y: number, x0: number, y0: numbe
 
   return x0 < x && x < x1 && y0 < y && y < y1
 }
+
+export const splice = (array: number[], beginIndex: number, numRemove: number, addValues?: number[]) => {
+  if (beginIndex >= array.length) {
+    throw new Error(`Cannot splice: beginIndex:${beginIndex} >= array.length:${array.length}`)
+  }
+
+  if (numRemove < 0) {
+    throw new Error(`Cannot splice: numRemove:${numRemove} < 0`)
+  }
+
+  const numAdd = addValues != null ? addValues.length : 0
+
+  if (numRemove > numAdd) {
+    for (let i = beginIndex; i < array.length; i++) {
+      array[i + numAdd] = array[i + numRemove]
+    }
+
+    array.length += numAdd - numRemove
+  } else {
+    const oldLength = array.length
+
+    // Expand array
+    array.length += numAdd - numRemove
+
+    for (let i = oldLength - 1; i >= beginIndex; i--) {
+      array[i + numAdd] = array[i + numRemove]
+    }
+  }
+
+  if (addValues != null) {
+    for (let i = 0; i < addValues.length; i++) {
+      array[i + beginIndex] = addValues[i]
+    }
+  }
+}

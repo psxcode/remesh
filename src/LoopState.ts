@@ -105,6 +105,29 @@ export class LoopState {
     return flatPtIndex !== null ? flatPtIndex / this.POINT_DATA_LENGTH : null
   }
 
+  static SnapVertices(ls0: LoopState, ls1: LoopState, snapDist: number): void {
+    const points0 = ls0.pointsFlatArray
+    const points1 = ls1.pointsFlatArray
+    const dist2 = snapDist * snapDist
+
+    for (let pi0 = 0; pi0 < points0.length; pi0 += LoopState.POINT_DATA_LENGTH) {
+      const p0x = points0[pi0]
+      const p0y = points0[pi0 + 1]
+
+      for (let pi1 = 0; pi1 < points1.length; pi1 += LoopState.POINT_DATA_LENGTH) {
+        const p1x = points1[pi1]
+        const p1y = points1[pi1 + 1]
+
+        if (len2(p0x, p0y, p1x, p1y) < dist2) {
+          const xx = (p0x + p1x) / 2
+          const xy = (p0y + p1y) / 2
+
+          ls0.updatePointPosition(LoopState.toPtIndex(pi0), xx, xy)
+          ls1.updatePointPosition(LoopState.toPtIndex(pi1), xx, xy)
+        }
+      }
+    }
+  }
   private isPointInsideLoop(x: number, y: number, loopIndex: number): boolean {
     const points = this._points
     const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]

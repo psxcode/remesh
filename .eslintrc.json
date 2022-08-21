@@ -1,0 +1,9 @@
+{
+  "extends": "@nextools/eslint-config",
+  "rules": {
+    "max-params": "off",
+    "no-param-reassign": "off",
+    "no-multi-assign": "off",
+    "sort-vars": "off"
+  }
+}

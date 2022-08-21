@@ -1,6 +1,3 @@
-/* eslint-disable sort-vars */
-/* eslint-disable no-param-reassign */
-/* eslint-disable max-params */
 import { distToSegment2, isIntersecting, isPointInSegmentABBB, len2, projToLine } from './utils'
 
 type PointsData = number[]

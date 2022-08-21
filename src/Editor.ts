@@ -1,5 +1,3 @@
-/* eslint-disable no-invalid-this */
-/* eslint-disable no-param-reassign */
 import { LoopState } from './LoopState'
 import { MeshState } from './MeshState'
 import { Save } from './Save'

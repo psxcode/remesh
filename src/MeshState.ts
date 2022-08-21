@@ -1,6 +1,3 @@
-/* eslint-disable max-params */
-/* eslint-disable no-param-reassign */
-/* eslint-disable sort-vars */
 import type { LoopState } from './LoopState'
 import { distToSegment2, isIntersecting, len2, isPointInSegmentABBB } from './utils'
 

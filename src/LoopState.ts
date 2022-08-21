@@ -9,9 +9,19 @@ type EdgesData = number[]
 type cEdgesData = readonly number[]
 type Point = [number, number]
 type WalkDir = -1 | 1
+type XPoint = {
+  /* Intersection Point X */
+  x: number,
+  /* Intersection Point Y */
+  y: number,
+  /* Index of the segment which gave the intersection */
+  si: number,
+  /* Squared Distance to the intersection */
+  d2: number,
+}
 
 export class LoopState {
-  static getSegmentIntersectionPoint(a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): [number, number] | null {
+  static getSegmentIntersectionPoint(a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): Point | null {
     const v0x = a1x - a0x
     const v0y = a1y - a0y
     const v1x = b1x - b0x
@@ -330,7 +340,7 @@ export class LoopState {
     return false
   }
 
-  private findIntersectionWithEdge(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
+  private findIntersectionWithEdge(x: number, y: number, basePointIndex: number): XPoint | null {
     const bpi = LoopState.toFlatPtIndex(basePointIndex)
     const points = this.pointsFlatArray
     const edges = this.edgesFlatArray
@@ -338,8 +348,8 @@ export class LoopState {
     const x0 = points[bpi]
     const y0 = points[bpi + 1]
 
-    let xPt: Point
-    let xDist: number | null = null
+    let xPt: Point | null = null
+    let distToX = Number.POSITIVE_INFINITY
     let xEdgeIndex: number
 
     // Collect edge intersections
@@ -356,42 +366,39 @@ export class LoopState {
       if (pt !== null) {
         const l = len2(x0, y0, pt[0], pt[1])
 
-        if (xDist === null || l < xDist) {
+        if (l < distToX) {
           xPt = pt
-          xDist = l
+          distToX = l
           xEdgeIndex = i
         }
       }
     }
 
-    if (xDist === null) {
+    if (xPt === null) {
       return null
     }
 
     return {
-      index: LoopState.toEdgeIndex(xEdgeIndex!),
-      point: xPt!,
+      si: LoopState.toEdgeIndex(xEdgeIndex!),
+      x: xPt[0],
+      y: xPt[1],
+      d2: distToX,
     }
   }
 
-  private findIntersectionWithLoop(x: number, y: number, basePointIndex: number): {point: Point, index: number} | null {
+  private findLineIntersectionWithLoopIndex(x0: number, y0: number, x1: number, y1: number, loopIndex: number, skipPointIndex: number | null = null): XPoint | null {
     if (this.numLoopPoints < 3) {
       return null
     }
 
-    const bpi = LoopState.toFlatPtIndex(basePointIndex)
     const points = this.pointsFlatArray
 
     let xEdgeIndex = 0
     let xPoint: Point | null = null
     let distToX = Number.POSITIVE_INFINITY
 
-    const bx = points[bpi]
-    const by = points[bpi + 1]
-
-    for (let li = 0; li < this._loopLengthes.length; li++) {
-      const loopStart = li === 0 ? 0 : this._loopLengthes[li - 1]
-      const loopEnd = this._loopLengthes[li]
+    const loopStart = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
+    const loopEnd = this._loopLengthes[loopIndex]
 
       let prevPtIndex = loopEnd - LoopState.POINT_DATA_LENGTH
       let lp0x = points[prevPtIndex]
@@ -402,11 +409,11 @@ export class LoopState {
         const lp1x = points[ptIndex]
         const lp1y = points[ptIndex + 1]
 
-        if (ptIndex !== bpi && prevPtIndex !== bpi) {
-          const pt = LoopState.getSegmentIntersectionPoint(bx, by, x, y, lp0x, lp0y, lp1x, lp1y)
+      if (ptIndex !== skipPointIndex && prevPtIndex !== skipPointIndex) {
+        const pt = LoopState.getSegmentIntersectionPoint(x0, y0, x1, y1, lp0x, lp0y, lp1x, lp1y)
 
           if (pt !== null) {
-            const ixLen = len2(bx, by, pt[0], pt[1])
+          const ixLen = len2(x0, y0, pt[0], pt[1])
 
             if (ixLen < distToX) {
               xEdgeIndex = prevPtIndex
@@ -420,16 +427,41 @@ export class LoopState {
         lp0x = lp1x
         lp0y = lp1y
       }
-    }
 
     if (xPoint === null) {
       return null
     }
 
     return {
-      index: LoopState.toLoopEdgeIndex(xEdgeIndex),
-      point: xPoint,
+      si: LoopState.toLoopEdgeIndex(xEdgeIndex),
+      x: xPoint[0],
+      y: xPoint[1],
+      d2: distToX,
     }
+  }
+
+  private findClosestIntersectionWithAllLoops(x: number, y: number, basePointIndex: number): XPoint | null {
+    if (this.numLoopPoints < 3) {
+      return null
+    }
+
+    const bpi = LoopState.toFlatPtIndex(basePointIndex)
+    const points = this.pointsFlatArray
+
+    let xPoint: XPoint | null = null
+
+    const bx = points[bpi]
+    const by = points[bpi + 1]
+
+    for (let li = 0; li < this._loopLengthes.length; li++) {
+      const xRes = this.findLineIntersectionWithLoopIndex(bx, by, x, y, li, bpi)
+
+      if (xRes !== null && (xPoint === null || xRes.d2 < xPoint.d2)) {
+        xPoint = xRes
+      }
+    }
+
+    return xPoint
   }
 
   private doesPointBelongToEdge(edgeIndex: number, pointIndex: number): boolean {
@@ -805,8 +837,8 @@ export class LoopState {
       if (ix !== null) {
       // console.log('  EDGE_INTERSECT', printEdge(ix.index))
 
-        const { point: [px, py], index } = ix
-        const pin = this.findPointNearbyOnEdge(px, py, index, snapDist)
+        const { x: px, y: py, si } = ix
+        const pin = this.findPointNearbyOnEdge(px, py, si, snapDist)
 
         if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -830,7 +862,7 @@ export class LoopState {
           return null
         }
 
-        const npi = this.insertPointIntoEdge(px, py, index)
+        const npi = this.insertPointIntoEdge(px, py, si)
 
         this.addEdge(basePointIndex, npi)
 
@@ -840,13 +872,13 @@ export class LoopState {
 
     // Find if intersecting loop
     {
-      const ix = this.findIntersectionWithLoop(x, y, basePointIndex)
+      const ix = this.findClosestIntersectionWithAllLoops(x, y, basePointIndex)
 
       if (ix !== null) {
         // console.log('  INTERSECT_LOOP', this.printLoopEdge(ix.index))
 
-        const { point: [px, py], index } = ix
-        const pin = this.findPointNearbyOnLoop(px, py, index, snapDist)
+        const { x: px, y: py, si } = ix
+        const pin = this.findPointNearbyOnLoop(px, py, si, snapDist)
 
         if (pin !== null) {
           // console.log('    POINT_NEARBY', this.printPoint(pin))
@@ -870,7 +902,7 @@ export class LoopState {
           return null
         }
 
-        const npi = this.insertPointIntoLoop(px, py, index)
+        const npi = this.insertPointIntoLoop(px, py, si)
 
         this.addEdge(
           basePointIndex >= npi ? basePointIndex + 1 : basePointIndex,

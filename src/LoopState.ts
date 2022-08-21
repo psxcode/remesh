@@ -168,12 +168,16 @@ export class LoopState {
     return this._edges
   }
 
-  getNumLoopPoints(loopIndex: number): number {
-    if (loopIndex < 0 || loopIndex >= this._loopLengthes.length) {
-      return 0
+  getLoopDataBegin(loopIndex: number): number {
+    return (loopIndex > 0 && loopIndex < this._loopLengthes.length)
+      ? this._loopLengthes[loopIndex - 1]
+      : 0
     }
 
-    return this._loopLengthes[loopIndex]
+  getLoopDataEnd(loopIndex: number): number {
+    return (loopIndex >= 0 && loopIndex < this._loopLengthes.length)
+      ? this._loopLengthes[loopIndex]
+      : 0
   }
 
   clear() {

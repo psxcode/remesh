@@ -24,7 +24,8 @@ export class Draw {
     const ctx = this.ctx
     const points = ls.pointsFlatArray
 
-    if (ls.getNumLoopPoints(0) === 0) {
+    if (ls.getLoopDataEnd(0) === 0) {
+      // Empty loop
       return
     }
 
@@ -32,15 +33,15 @@ export class Draw {
     ctx.strokeStyle = isActiveLoop ? this.activeLoopColor : this.loopColor
 
     for (let i = 0, numLoops = ls.numLoops; i < numLoops; i++) {
-      const loopStart = ls.getNumLoopPoints(i - 1)
-      const loopEnd = ls.getNumLoopPoints(i)
+      const loopBegin = ls.getLoopDataBegin(i)
+      const loopEnd = ls.getLoopDataEnd(i)
       const isLastLoop = i === numLoops - 1
 
       ctx.beginPath()
 
-      ctx.moveTo(points[loopStart], points[loopStart + 1])
+      ctx.moveTo(points[loopBegin], points[loopBegin + 1])
 
-      for (let i = loopStart + 2; i < loopEnd; i += 2) {
+      for (let i = loopBegin + 2; i < loopEnd; i += 2) {
         ctx.lineTo(points[i], points[i + 1])
       }
 
@@ -177,11 +178,11 @@ export class Draw {
 
     // Loop points
     for (let li = 0; li < numLoops; li++) {
-      const loopStart = state.getNumLoopPoints(li - 1)
-      const loopEnd = state.getNumLoopPoints(li)
+      const loopBegin = state.getLoopDataBegin(li)
+      const loopEnd = state.getLoopDataEnd(li)
 
       // Draw firts point bigger
-      ctx.fillRect(points[loopStart] - 4, points[loopStart + 1] - 4, 8, 8)
+      ctx.fillRect(points[loopBegin] - 4, points[loopBegin + 1] - 4, 8, 8)
 
       for (let i = LoopState.POINT_DATA_LENGTH; i < loopEnd; i += LoopState.POINT_DATA_LENGTH) {
         ctx.fillRect(points[i] - 2, points[i + 1] - 2, 4, 4)

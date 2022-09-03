@@ -12,7 +12,7 @@ type XPoint = {
   /* Intersection Point Y */
   y: number,
   /* Index of the segment which gave the intersection */
-  si: number,
+  edgeIndex: number,
   /* Squared Distance to the intersection */
   d2: number,
 }
@@ -399,7 +399,7 @@ export class LoopState {
     }
 
     return {
-      si: LoopState.toEdgeIndex(xEdgeIndex!),
+      edgeIndex: LoopState.toEdgeIndex(xEdgeIndex!),
       x: xPt[0],
       y: xPt[1],
       d2: distToX,
@@ -453,7 +453,7 @@ export class LoopState {
     }
 
     return {
-      si: LoopState.toLoopEdgeIndex(xEdgeIndex),
+      edgeIndex: LoopState.toLoopEdgeIndex(xEdgeIndex),
       x: xPoint[0],
       y: xPoint[1],
       d2: distToX,
@@ -857,8 +857,8 @@ export class LoopState {
       if (ix !== null) {
       // console.log('  EDGE_INTERSECT', printEdge(ix.index))
 
-        const { x: px, y: py, si } = ix
-        const pin = this.findPointNearbyOnEdge(px, py, si, snapDist)
+        const { x: px, y: py, edgeIndex } = ix
+        const pin = this.findPointNearbyOnEdge(px, py, edgeIndex, snapDist)
 
         if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -882,7 +882,7 @@ export class LoopState {
           return null
         }
 
-        const npi = this.insertPointIntoEdge(px, py, si)
+        const npi = this.insertPointIntoEdge(px, py, edgeIndex)
 
         this.addEdge(basePointIndex, npi)
 
@@ -897,8 +897,8 @@ export class LoopState {
       if (ix !== null) {
         // console.log('  INTERSECT_LOOP', this.printLoopEdge(ix.index))
 
-        const { x: px, y: py, si } = ix
-        const pin = this.findPointNearbyOnLoop(px, py, si, snapDist)
+        const { x: px, y: py, edgeIndex } = ix
+        const pin = this.findPointNearbyOnLoop(px, py, edgeIndex, snapDist)
 
         if (pin !== null) {
           // console.log('    POINT_NEARBY', this.printPoint(pin))
@@ -922,7 +922,7 @@ export class LoopState {
           return null
         }
 
-        const npi = this.insertPointIntoLoop(px, py, si)
+        const npi = this.insertPointIntoLoop(px, py, edgeIndex)
 
         this.addEdge(
           basePointIndex >= npi ? basePointIndex + 1 : basePointIndex,

@@ -106,7 +106,18 @@ export class LoopState {
     return flatPtIndex !== null ? flatPtIndex / this.POINT_DATA_LENGTH : null
   }
 
-  static SnapVertices(ls0: LoopState, ls1: LoopState, snapDist: number): void {
+  private static InterpolatePoint(x0: number, y0: number, x1: number, y1: number, normalizedValue: number): Point {
+    return [
+      x0 + (x1 - x0) * normalizedValue,
+      y0 + (y1 - y0) * normalizedValue,
+    ]
+  }
+
+  private static InterpolatePointDist(x0: number, y0: number, x1: number, y1: number, dist: number): Point {
+    return LoopState.InterpolatePoint(x0, y0, x1, y1, dist / Math.sqrt(len2(x0, y0, x1, y1)))
+  }
+
+  static SnapAllPoints(ls0: LoopState, ls1: LoopState, snapDist: number): void {
     const points0 = ls0.pointsFlatArray
     const points1 = ls1.pointsFlatArray
     const dist2 = snapDist * snapDist

@@ -6,6 +6,7 @@ type EdgesData = number[]
 type cEdgesData = readonly number[]
 type Point = [number, number]
 type WalkDir = -1 | 1
+type LoopStatePair = [LoopState, LoopState]
 type XPoint = {
   /* Intersection Point X */
   x: number,
@@ -136,10 +137,184 @@ export class LoopState {
 
           ls0.updatePointPosition(LoopState.toPtIndex(pi0), xx, xy)
           ls1.updatePointPosition(LoopState.toPtIndex(pi1), xx, xy)
+
+          /* Restart loop */
+          pi0 = pi1 = 0
         }
       }
     }
   }
+
+  static MergeLoops(ls0: LoopState, ls1: LoopState, snapDist: number): LoopState | null {
+    const lsp: LoopStatePair = [ls0, ls1]
+    const lspInv: LoopStatePair = [ls1, ls0]
+
+    const swapLsp = () => {
+      lsp[0] = lspInv[0]
+      lsp[1] = lspInv[1]
+      lspInv[0] = lsp[1]
+      lspInv[1] = lsp[0]
+    }
+
+    const sortPrimarySecondaryLoopAndGetBeginPoint = (): number => {
+      // Make 2 iterations to find first outside point
+      for (let it = 0; it < 2; it++) {
+        const [ls0, ls1] = lsp
+        const points = ls0.pointsFlatArray
+        const loopBegin = 0
+        const loopEnd = ls0.getLoopDataEnd(0)
+
+        for (let pi = loopBegin; pi < loopEnd; pi += LoopState.POINT_DATA_LENGTH) {
+          const x = points[pi]
+          const y = points[pi + 1]
+          const isPointOutside = ls1.isPointInsideLoop(x, y, 0) === false
+
+          if (isPointOutside) {
+            // At least one ls0.mainLoop point is outside of ls1.mainLoop
+            return pi
+          }
+        }
+
+        // All ls0.mainLoop points are inside of ls1.mainLoop
+        swapLsp()
+      }
+
+      throw new Error('Cannot find begin point')
+    }
+
+    type WalkParams = {
+      lsp: LoopStatePair,
+      lspInv: LoopStatePair,
+      breakOnPointIndex: number,
+      nextPointIndex: number,
+      beginX: number,
+      beginY: number,
+      switchedFromLoopIndex: number,
+      dir: WalkDir,
+      snapDist: number,
+      onPoint: (x: number, y: number) => void,
+    }
+
+    type WalkResult ={
+      nextPointIndex: number,
+      beginX: number,
+      beginY: number,
+    }
+
+    const walkLoop = ({
+      lsp,
+      lspInv,
+      beginX: bx,
+      beginY: by,
+      nextPointIndex: npi,
+      breakOnPointIndex,
+      switchedFromLoopIndex,
+      dir,
+      snapDist,
+      onPoint,
+    }: WalkParams): WalkResult => {
+      const [ls0, ls1] = lsp
+      const pts0 = ls0.pointsFlatArray
+      const pts1 = ls1.pointsFlatArray
+
+      for (let i = 0; i < 100; i++) {
+        // console.log('POINT', i, bx, by)
+        onPoint(bx, by)
+
+        const nx = pts0[npi]
+        const ny = pts0[npi + 1]
+        const [x, y] = LoopState.InterpolatePointDist(bx, by, nx, ny, snapDist)
+        const xres = ls1.findLineIntersectionWithAnyLoop(x, y, nx, ny)
+
+        // console.log('XRES', xres)
+
+        if (xres === null) {
+          if (i > 0 && npi === breakOnPointIndex) {
+            // console.log('BREAK', npi, breakOnPointIndex)
+
+            break
+          }
+
+          bx = nx
+          by = ny
+          npi = ls0.wrapLoopIndex(npi, dir)
+        } else {
+          const { x: xX, y: xY, edgeIndex } = xres
+          const pi10 = LoopState.toFlatLoopEdgeIndex(edgeIndex)
+          const pi11 = ls1.wrapLoopIndex(pi10, 1)
+
+          // console.log('edge', pi10, pi11)
+
+          const [x10, y10] = LoopState.InterpolatePointDist(xX, xY, pts1[pi10], pts1[pi10 + 1], snapDist)
+          const opi = ls0.isPointInsideLoop(x10, y10, ls0.getLoopIndex(npi)) ? pi11 : pi10
+          const li = ls1.getLoopIndex(pi10)
+
+          if (li === switchedFromLoopIndex) {
+            // console.log('<---- return', opi)
+
+            return {
+              nextPointIndex: opi,
+              beginX: xX,
+              beginY: xY,
+            }
+          }
+
+          // console.log('-----> go inside')
+
+          // const ipi = opi === pi10 ? pi11 : pi10
+          const dir = opi === pi10 ? -1 : 1
+
+          const walkRes = walkLoop({
+            lsp: lspInv,
+            lspInv: lsp,
+            nextPointIndex: opi,
+            breakOnPointIndex: opi,
+            beginX: xX,
+            beginY: xY,
+            switchedFromLoopIndex: ls0.getLoopIndex(npi),
+            dir,
+            snapDist,
+            onPoint,
+          })
+
+          bx = walkRes.beginX
+          by = walkRes.beginY
+          npi = walkRes.nextPointIndex
+        }
+      }
+
+      // console.log('<---- XXXXXXXXXXXX RETURN')
+
+      return {
+        beginX: 0,
+        beginY: 0,
+        nextPointIndex: breakOnPointIndex,
+      }
+
+      // throw new Error('wait')
+    }
+
+    const ls2 = new LoopState()
+    const bpi = sortPrimarySecondaryLoopAndGetBeginPoint()
+
+    walkLoop({
+      lsp,
+      lspInv,
+      nextPointIndex: ls0.wrapLoopIndex(bpi, 1),
+      breakOnPointIndex: bpi,
+      beginX: ls0.pointsFlatArray[bpi],
+      beginY: ls0.pointsFlatArray[bpi + 1],
+      dir: 1,
+      switchedFromLoopIndex: -1,
+      snapDist,
+      onPoint: (x, y) => {
+        ls2.addLoopPoint(x, y, null, snapDist)
+      },
+    })
+
+    return ls2
+  }
+
   private isPointInsideLoop(x: number, y: number, loopIndex: number): boolean {
     const points = this._points
     const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
@@ -223,7 +398,7 @@ export class LoopState {
     return (loopIndex > 0 && loopIndex < this._loopLengthes.length)
       ? this._loopLengthes[loopIndex - 1]
       : 0
-    }
+  }
 
   getLoopDataEnd(loopIndex: number): number {
     return (loopIndex >= 0 && loopIndex < this._loopLengthes.length)
@@ -441,33 +616,33 @@ export class LoopState {
     const loopStart = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
     const loopEnd = this._loopLengthes[loopIndex]
 
-      let prevPtIndex = loopEnd - LoopState.POINT_DATA_LENGTH
-      let lp0x = points[prevPtIndex]
-      let lp0y = points[prevPtIndex + 1]
+    let prevPtIndex = loopEnd - LoopState.POINT_DATA_LENGTH
+    let lp0x = points[prevPtIndex]
+    let lp0y = points[prevPtIndex + 1]
 
-      // Collect loop intersections
-      for (let ptIndex = loopStart; ptIndex < loopEnd; ptIndex += LoopState.POINT_DATA_LENGTH) {
-        const lp1x = points[ptIndex]
-        const lp1y = points[ptIndex + 1]
+    // Collect loop intersections
+    for (let ptIndex = loopStart; ptIndex < loopEnd; ptIndex += LoopState.POINT_DATA_LENGTH) {
+      const lp1x = points[ptIndex]
+      const lp1y = points[ptIndex + 1]
 
       if (ptIndex !== skipPointIndex && prevPtIndex !== skipPointIndex) {
         const pt = LoopState.getSegmentIntersectionPoint(x0, y0, x1, y1, lp0x, lp0y, lp1x, lp1y)
 
-          if (pt !== null) {
+        if (pt !== null) {
           const ixLen = len2(x0, y0, pt[0], pt[1])
 
-            if (ixLen < distToX) {
-              xEdgeIndex = prevPtIndex
-              distToX = ixLen
-              xPoint = pt
-            }
+          if (ixLen < distToX) {
+            xEdgeIndex = prevPtIndex
+            distToX = ixLen
+            xPoint = pt
           }
         }
-
-        prevPtIndex = ptIndex
-        lp0x = lp1x
-        lp0y = lp1y
       }
+
+      prevPtIndex = ptIndex
+      lp0x = lp1x
+      lp0y = lp1y
+    }
 
     if (xPoint === null) {
       return null
@@ -746,7 +921,7 @@ export class LoopState {
 
     this.clearEdges()
     this._loopLengthes.push(this._loopLengthes[this._loopLengthes.length - 1])
-    }
+  }
 
   endInnerLoop() {
     if (this.numLastLoopPoints < 3) {
@@ -1111,7 +1286,7 @@ export class LoopState {
 
     this._points = points
     this._edges = edges
-      this._loopLengthes = loopLength
+    this._loopLengthes = loopLength
     //
   }
 }

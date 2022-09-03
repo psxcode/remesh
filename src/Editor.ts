@@ -505,7 +505,11 @@ export class Editor {
       return
     }
 
-    const ls = LoopState.mergeLoopStates(this.#loops[0], this.#loops[1], this.snapDist)
+    const ls = LoopState.MergeLoops(this.#loops[0], this.#loops[1], this.snapDist)
+
+    if (ls === null) {
+      return
+    }
 
     this.render()
 

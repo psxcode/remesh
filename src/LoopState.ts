@@ -90,6 +90,10 @@ export class LoopState {
     return edgeIndex * this.EDGE_DATA_LENGTH
   }
 
+  private static toFlatLoopEdgeIndex(edgeIndex: number): number {
+    return edgeIndex * this.POINT_DATA_LENGTH
+  }
+
   private static toLoopEdgeIndex(flatEdgeIndex: number): number {
     return flatEdgeIndex / this.POINT_DATA_LENGTH
   }
@@ -196,6 +200,12 @@ export class LoopState {
 
   get edgesFlatArray(): cEdgesData {
     return this._edges
+  }
+
+  getNumLoopPoints(loopIndex: number): number {
+    return ((loopIndex > 0 && loopIndex < this._loopLengthes.length)
+      ? this._loopLengthes[loopIndex - 1]
+      : this._loopLengthes[0]) / LoopState.POINT_DATA_LENGTH
   }
 
   getLoopDataBegin(loopIndex: number): number {

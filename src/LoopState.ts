@@ -470,21 +470,15 @@ export class LoopState {
     }
   }
 
-  private findClosestIntersectionWithAllLoops(x: number, y: number, basePointIndex: number): XPoint | null {
+  private findLineIntersectionWithAnyLoop(x0: number, y0: number, x1: number, y1: number, skipPointIndex: number | null = null): XPoint | null {
     if (this.numLoopPoints < 3) {
       return null
     }
 
-    const bpi = LoopState.toFlatPtIndex(basePointIndex)
-    const points = this.pointsFlatArray
-
     let xPoint: XPoint | null = null
 
-    const bx = points[bpi]
-    const by = points[bpi + 1]
-
     for (let li = 0; li < this._loopLengthes.length; li++) {
-      const xRes = this.findLineIntersectionWithLoopIndex(bx, by, x, y, li, bpi)
+      const xRes = this.findLineIntersectionWithLoopIndex(x0, y0, x1, y1, li, skipPointIndex)
 
       if (xRes !== null && (xPoint === null || xRes.d2 < xPoint.d2)) {
         xPoint = xRes
@@ -492,6 +486,16 @@ export class LoopState {
     }
 
     return xPoint
+  }
+
+  private findClosestIntersectionWithAllLoops(x: number, y: number, basePointIndex: number): XPoint | null {
+    const bpi = LoopState.toFlatPtIndex(basePointIndex)
+    const points = this.pointsFlatArray
+
+    const bx = points[bpi]
+    const by = points[bpi + 1]
+
+    return this.findLineIntersectionWithAnyLoop(bx, by, x, y, bpi)
   }
 
   private doesPointBelongToEdge(edgeIndex: number, pointIndex: number): boolean {

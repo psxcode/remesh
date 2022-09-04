@@ -145,7 +145,7 @@ export class LoopState {
     }
   }
 
-  static MergeLoops(_ls0: LoopState, _ls1: LoopState, snapDist: number): LoopState | null {
+  static MergeLoops(loops: LoopState[], snapDist: number): LoopState | null {
     const swapLsp = (lsp: LoopStatePair): LoopStatePair => {
       const [ls0, ls1] = lsp
 
@@ -335,51 +335,71 @@ export class LoopState {
       }
     }
 
-    const lsp = sortPrimarySecondaryLoop([_ls0, _ls1])
-    const lspInv = swapLsp(lsp)
-    const ls2 = new LoopState()
-
-    // Stroke Main Loop
-    {
-      const halfSnapDist = snapDist / 2
-      let numPointsAdded = 0
-      const onPoint = (x: number, y: number) => {
-        ++numPointsAdded
-        ls2.addLoopPoint(x, y, null, snapDist)
+    const reduceLoops = (loops: LoopState[], reducer: (lsp: LoopStatePair) => LoopState) => {
+      if (loops.length === 0) {
+        return new LoopState()
       }
-      const onLoopBegin = () => {
-        if (numPointsAdded > 0) {
-          ls2.beginInnerLoop()
+
+      if (loops.length === 1) {
+        return loops[0]
+      }
+
+      let acc = loops[0]
+
+      for (let i = 1; i < loops.length; i++) {
+        acc = reducer([acc, loops[i]])
+      }
+
+      return acc
+    }
+
+    return reduceLoops(loops, (_lsp) => {
+      const lsp = sortPrimarySecondaryLoop(_lsp)
+      const lspInv = swapLsp(lsp)
+      const ls2 = new LoopState()
+
+      // Stroke Main Loop
+      {
+        const halfSnapDist = snapDist / 2
+        let numPointsAdded = 0
+        const onPoint = (x: number, y: number) => {
+          ++numPointsAdded
+          ls2.addLoopPoint(x, y, null, snapDist)
+        }
+        const onLoopBegin = () => {
+          if (numPointsAdded > 0) {
+            ls2.beginInnerLoop()
+          }
+        }
+        const doesPointExist = (x: number, y: number) => {
+          return ls2.findPointNearby(x, y, halfSnapDist) !== null
+        }
+
+        visitAllLoops({ lsp, lspInv, snapDist, onPoint, onLoopBegin, doesPointExist })
+
+        if (numPointsAdded === 0) {
+          throw new Error('Didnt add any point from Main Loop')
         }
       }
-      const doesPointExist = (x: number, y: number) => {
-        return ls2.findPointNearby(x, y, halfSnapDist) !== null
+
+      // Stroke Secondary Loop
+      {
+        const halfSnapDist = snapDist / 2
+        const onPoint = (x: number, y: number) => {
+          ls2.addLoopPoint(x, y, null, snapDist)
+        }
+        const onLoopBegin = () => {
+          ls2.beginInnerLoop()
+        }
+        const doesPointExist = (x: number, y: number) => {
+          return ls2.findPointNearby(x, y, halfSnapDist) !== null
+        }
+
+        visitAllLoops({ lsp: lspInv, lspInv: lsp, snapDist, onPoint, onLoopBegin, doesPointExist })
       }
 
-      visitAllLoops({ lsp, lspInv, snapDist, onPoint, onLoopBegin, doesPointExist })
-
-      if (numPointsAdded === 0) {
-        throw new Error('Didnt add any point from Main Loop')
-      }
-    }
-
-    // Stroke Secondary Loop
-    {
-      const halfSnapDist = snapDist / 2
-      const onPoint = (x: number, y: number) => {
-        ls2.addLoopPoint(x, y, null, snapDist)
-      }
-      const onLoopBegin = () => {
-        ls2.beginInnerLoop()
-      }
-      const doesPointExist = (x: number, y: number) => {
-        return ls2.findPointNearby(x, y, halfSnapDist) !== null
-      }
-
-      visitAllLoops({ lsp: lspInv, lspInv: lsp, snapDist, onPoint, onLoopBegin, doesPointExist })
-    }
-
-    return ls2
+      return ls2
+    })
   }
 
   get loopLengthes(): readonly number[] {

@@ -1,3 +1,4 @@
+/* eslint-disable no-invalid-this */
 import { LoopState } from './LoopState'
 import { MeshState } from './MeshState'
 import { Save } from './Save'
@@ -505,13 +506,27 @@ export class Editor {
       return
     }
 
-    const ls = LoopState.MergeLoops(this.#loops[0], this.#loops[1], this.snapDist)
+    const ls = LoopState.MergeLoops(this.#loops, this.snapDist / 2)
 
     if (ls === null) {
       return
     }
 
-    this.render()
+    {
+      const scale = Number(Editor.pcloudScale.value)
+
+      if (!Number.isInteger(scale)) {
+        return
+      }
+
+      if (this.#mesh === null) {
+        this.#mesh = new MeshState()
+      }
+
+      this.#mesh.generate(ls, scale)
+      this.#res.drawMesh(this.#mesh, true, true, true)
+      this.#mesh.clear()
+    }
 
     this.#res.drawLoop(ls, true, true)
     this.#res.drawPoints(ls)

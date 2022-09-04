@@ -145,18 +145,14 @@ export class LoopState {
     }
   }
 
-  static MergeLoops(ls0: LoopState, ls1: LoopState, snapDist: number): LoopState | null {
-    const lsp: LoopStatePair = [ls0, ls1]
-    const lspInv: LoopStatePair = [ls1, ls0]
+  static MergeLoops(_ls0: LoopState, _ls1: LoopState, snapDist: number): LoopState | null {
+    const swapLsp = (lsp: LoopStatePair): LoopStatePair => {
+      const [ls0, ls1] = lsp
 
-    const swapLsp = () => {
-      lsp[0] = lspInv[0]
-      lsp[1] = lspInv[1]
-      lspInv[0] = lsp[1]
-      lspInv[1] = lsp[0]
+      return [ls1, ls0]
     }
 
-    const sortPrimarySecondaryLoopAndGetBeginPoint = (): number => {
+    const sortPrimarySecondaryLoop = (lsp: LoopStatePair): LoopStatePair => {
       // Make 2 iterations to find first outside point
       for (let it = 0; it < 2; it++) {
         const [ls0, ls1] = lsp
@@ -171,21 +167,20 @@ export class LoopState {
 
           if (isPointOutside) {
             // At least one ls0.mainLoop point is outside of ls1.mainLoop
-            return pi
+            return lsp
           }
         }
 
         // All ls0.mainLoop points are inside of ls1.mainLoop
-        swapLsp()
+        return swapLsp(lsp)
       }
 
       throw new Error('Cannot find begin point')
     }
 
-    type WalkParams = {
+    type VisitLoopPointsParams = {
       lsp: LoopStatePair,
       lspInv: LoopStatePair,
-      breakOnPointIndex: number,
       nextPointIndex: number,
       beginX: number,
       beginY: number,
@@ -195,27 +190,29 @@ export class LoopState {
       onPoint: (x: number, y: number) => void,
     }
 
-    type WalkResult ={
+    type VisitLoopPointsResult ={
       nextPointIndex: number,
       beginX: number,
       beginY: number,
     }
 
-    const walkLoop = ({
+    const visitLoopPoints = ({
       lsp,
       lspInv,
-      beginX: bx,
-      beginY: by,
-      nextPointIndex: npi,
-      breakOnPointIndex,
+      beginX,
+      beginY,
+      nextPointIndex,
       switchedFromLoopIndex,
       dir,
       snapDist,
       onPoint,
-    }: WalkParams): WalkResult => {
+    }: VisitLoopPointsParams): VisitLoopPointsResult => {
       const [ls0, ls1] = lsp
       const pts0 = ls0.pointsFlatArray
       const pts1 = ls1.pointsFlatArray
+      let npi = nextPointIndex
+      let bx = beginX
+      let by = beginY
 
       for (let i = 0; i < 100; i++) {
         // console.log('POINT', i, bx, by)
@@ -229,27 +226,21 @@ export class LoopState {
         // console.log('XRES', xres)
 
         if (xres === null) {
-          if (i > 0 && npi === breakOnPointIndex) {
-            // console.log('BREAK', npi, breakOnPointIndex)
-
-            break
-          }
-
           bx = nx
           by = ny
           npi = ls0.wrapLoopIndex(npi, dir)
         } else {
           const { x: xX, y: xY, edgeIndex } = xres
           const pi10 = LoopState.toFlatLoopEdgeIndex(edgeIndex)
-          const pi11 = ls1.wrapLoopIndex(pi10, 1)
 
           // console.log('edge', pi10, pi11)
 
           const [x10, y10] = LoopState.InterpolatePointDist(xX, xY, pts1[pi10], pts1[pi10 + 1], snapDist)
-          const opi = ls0.isPointInsideLoop(x10, y10, ls0.getLoopIndex(npi)) ? pi11 : pi10
-          const li = ls1.getLoopIndex(pi10)
+          const opi = ls0.isPointInsideLoop(x10, y10, ls0.getLoopIndex(npi))
+            ? ls1.wrapLoopIndex(pi10, 1)
+            : pi10
 
-          if (li === switchedFromLoopIndex) {
+          if (ls1.getLoopIndex(pi10) === switchedFromLoopIndex) {
             // console.log('<---- return', opi)
 
             return {
@@ -260,19 +251,14 @@ export class LoopState {
           }
 
           // console.log('-----> go inside')
-
-          // const ipi = opi === pi10 ? pi11 : pi10
-          const dir = opi === pi10 ? -1 : 1
-
-          const walkRes = walkLoop({
+          const walkRes = visitLoopPoints({
             lsp: lspInv,
             lspInv: lsp,
             nextPointIndex: opi,
-            breakOnPointIndex: opi,
             beginX: xX,
             beginY: xY,
             switchedFromLoopIndex: ls0.getLoopIndex(npi),
-            dir,
+            dir: opi === pi10 ? -1 : 1,
             snapDist,
             onPoint,
           })
@@ -281,6 +267,10 @@ export class LoopState {
           by = walkRes.beginY
           npi = walkRes.nextPointIndex
         }
+
+        if (len2(bx, by, beginX, beginY) < snapDist) {
+          break
+        }
       }
 
       // console.log('<---- XXXXXXXXXXXX RETURN')
@@ -288,29 +278,106 @@ export class LoopState {
       return {
         beginX: 0,
         beginY: 0,
-        nextPointIndex: breakOnPointIndex,
+        nextPointIndex: 0,
       }
-
-      // throw new Error('wait')
     }
 
-    const ls2 = new LoopState()
-    const bpi = sortPrimarySecondaryLoopAndGetBeginPoint()
+    type VisitAllLoopsParams = {
+      lsp: LoopStatePair,
+      lspInv: LoopStatePair,
+      snapDist: number,
+      onPoint: (x: number, y: number) => void,
+      onLoopBegin: () => void,
+      doesPointExist: (x: number, y: number) => boolean,
+    }
 
-    walkLoop({
-      lsp,
-      lspInv,
-      nextPointIndex: ls0.wrapLoopIndex(bpi, 1),
-      breakOnPointIndex: bpi,
-      beginX: ls0.pointsFlatArray[bpi],
-      beginY: ls0.pointsFlatArray[bpi + 1],
-      dir: 1,
-      switchedFromLoopIndex: -1,
-      snapDist,
-      onPoint: (x, y) => {
+    const visitAllLoops = ({ lsp, lspInv, snapDist, onPoint, onLoopBegin, doesPointExist }: VisitAllLoopsParams) => {
+      const findMissingPointOnLoop = (ls0LoopIndex: number): number | null => {
+        const [ls0, ls1] = lsp
+        const loopBegin = ls0.getLoopDataBegin(ls0LoopIndex)
+        const loopEnd = ls0.getLoopDataEnd(ls0LoopIndex)
+        const pts = ls0.pointsFlatArray
+
+        for (let pi = loopBegin; pi < loopEnd; pi += LoopState.POINT_DATA_LENGTH) {
+          const px = pts[pi]
+          const py = pts[pi + 1]
+
+          if (doesPointExist(px, py) === false && ls1.isPointInsideAllLoops(px, py) === false) {
+            return pi
+          }
+        }
+
+        return null
+      }
+
+      for (let loopIndex = 0; loopIndex < lsp[0].numLoops; loopIndex++) {
+        while (true) {
+          const bpi = findMissingPointOnLoop(loopIndex)
+
+          if (bpi === null) {
+            break
+          }
+
+          onLoopBegin()
+
+          visitLoopPoints({
+            lsp,
+            lspInv,
+            nextPointIndex: lsp[0].wrapLoopIndex(bpi, 1),
+            beginX: lsp[0].pointsFlatArray[bpi],
+            beginY: lsp[0].pointsFlatArray[bpi + 1],
+            dir: 1,
+            switchedFromLoopIndex: -1,
+            snapDist,
+            onPoint,
+          })
+        }
+      }
+    }
+
+    const lsp = sortPrimarySecondaryLoop([_ls0, _ls1])
+    const lspInv = swapLsp(lsp)
+    const ls2 = new LoopState()
+
+    // Stroke Main Loop
+    {
+      const halfSnapDist = snapDist / 2
+      let numPointsAdded = 0
+      const onPoint = (x: number, y: number) => {
+        ++numPointsAdded
         ls2.addLoopPoint(x, y, null, snapDist)
-      },
-    })
+      }
+      const onLoopBegin = () => {
+        if (numPointsAdded > 0) {
+          ls2.beginInnerLoop()
+        }
+      }
+      const doesPointExist = (x: number, y: number) => {
+        return ls2.findPointNearby(x, y, halfSnapDist) !== null
+      }
+
+      visitAllLoops({ lsp, lspInv, snapDist, onPoint, onLoopBegin, doesPointExist })
+
+      if (numPointsAdded === 0) {
+        throw new Error('Didnt add any point from Main Loop')
+      }
+    }
+
+    // Stroke Secondary Loop
+    {
+      const halfSnapDist = snapDist / 2
+      const onPoint = (x: number, y: number) => {
+        ls2.addLoopPoint(x, y, null, snapDist)
+      }
+      const onLoopBegin = () => {
+        ls2.beginInnerLoop()
+      }
+      const doesPointExist = (x: number, y: number) => {
+        return ls2.findPointNearby(x, y, halfSnapDist) !== null
+      }
+
+      visitAllLoops({ lsp: lspInv, lspInv: lsp, snapDist, onPoint, onLoopBegin, doesPointExist })
+    }
 
     return ls2
   }
@@ -760,7 +827,7 @@ export class LoopState {
     return false
   }
 
-  private findPointNearbyOnEdge(x: number, y: number, edgeIndex: number, dist: number): number | null {
+  private findEdgePointNearbyCoords(x: number, y: number, edgeIndex: number, dist: number): number | null {
     const points = this.pointsFlatArray
     const edges = this.edgesFlatArray
     const ei = LoopState.toFlatEdgeIndex(edgeIndex)
@@ -779,7 +846,7 @@ export class LoopState {
     return null
   }
 
-  private findPointNearbyOnLoop(x: number, y: number, loopPointIndex: number, dist: number): number | null {
+  private findLoopEdgePointNearbyCoords(x: number, y: number, loopPointIndex: number, dist: number): number | null {
     const points = this.pointsFlatArray
     const pi0 = LoopState.toFlatPtIndex(loopPointIndex)
     const pi1 = this.wrapLoopIndex(pi0, 1)
@@ -1058,7 +1125,7 @@ export class LoopState {
       // console.log('  EDGE_INTERSECT', printEdge(ix.index))
 
         const { x: px, y: py, edgeIndex } = ix
-        const pin = this.findPointNearbyOnEdge(px, py, edgeIndex, snapDist)
+        const pin = this.findEdgePointNearbyCoords(px, py, edgeIndex, snapDist)
 
         if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -1098,7 +1165,7 @@ export class LoopState {
         // console.log('  INTERSECT_LOOP', this.printLoopEdge(ix.index))
 
         const { x: px, y: py, edgeIndex } = ix
-        const pin = this.findPointNearbyOnLoop(px, py, edgeIndex, snapDist)
+        const pin = this.findLoopEdgePointNearbyCoords(px, py, edgeIndex, snapDist)
 
         if (pin !== null) {
           // console.log('    POINT_NEARBY', this.printPoint(pin))
@@ -1166,7 +1233,7 @@ export class LoopState {
         }
 
         const [px, py] = this.projToEdge(x, y, ein)
-        const pin = this.findPointNearbyOnEdge(px, py, ein, snapDist)
+        const pin = this.findEdgePointNearbyCoords(px, py, ein, snapDist)
 
         if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))
@@ -1204,7 +1271,7 @@ export class LoopState {
       // console.log('  LOOP_NEARBY', printLoopEdge(ein))
 
         const [px, py] = this.projToLoop(x, y, ein)
-        const pin = this.findPointNearbyOnLoop(px, py, ein, snapDist)
+        const pin = this.findLoopEdgePointNearbyCoords(px, py, ein, snapDist)
 
         if (pin !== null) {
         // console.log('    POINT_NEARBY', printPoint(pin))

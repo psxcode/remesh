@@ -19,44 +19,6 @@ type XPoint = {
 }
 
 export class LoopState {
-  static getSegmentIntersectionPoint(a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): Point | null {
-    const v0x = a1x - a0x
-    const v0y = a1y - a0y
-    const v1x = b1x - b0x
-    const v1y = b1y - b0y
-    const cross = v0x * v1y - v1x * v0y
-
-    if (cross === 0) {
-      return null
-    } // collinear
-
-    const s02_x = a0x - b0x
-    const s02_y = a0y - b0y
-    const s_numer = v0x * s02_y - v0y * s02_x
-
-    if (s_numer < 0 === cross > 0) {
-      return null
-    } // no collision
-
-    const t_numer = v1x * s02_y - v1y * s02_x
-
-    if (t_numer < 0 === cross > 0) {
-      return null
-    } // no collision
-
-    if (s_numer > cross === cross > 0 || t_numer > cross === cross > 0) {
-      return null
-    } // no collision
-
-    // collision detected
-    const t = t_numer / cross
-
-    return [
-      a0x + (t * v0x),
-      a0y + (t * v0y),
-    ]
-  }
-
   private _points: PointsData = []
   private _loopLengthes: number[] = [0]
   private _edges: EdgesData = []
@@ -116,6 +78,44 @@ export class LoopState {
 
   private static InterpolatePointDist(x0: number, y0: number, x1: number, y1: number, dist: number): Point {
     return LoopState.InterpolatePoint(x0, y0, x1, y1, dist / Math.sqrt(len2(x0, y0, x1, y1)))
+  }
+
+  static getSegmentIntersectionPoint(a0x: number, a0y: number, a1x: number, a1y: number, b0x: number, b0y: number, b1x: number, b1y: number): Point | null {
+    const v0x = a1x - a0x
+    const v0y = a1y - a0y
+    const v1x = b1x - b0x
+    const v1y = b1y - b0y
+    const cross = v0x * v1y - v1x * v0y
+
+    if (cross === 0) {
+      return null
+    } // collinear
+
+    const s02_x = a0x - b0x
+    const s02_y = a0y - b0y
+    const s_numer = v0x * s02_y - v0y * s02_x
+
+    if (s_numer < 0 === cross > 0) {
+      return null
+    } // no collision
+
+    const t_numer = v1x * s02_y - v1y * s02_x
+
+    if (t_numer < 0 === cross > 0) {
+      return null
+    } // no collision
+
+    if (s_numer > cross === cross > 0 || t_numer > cross === cross > 0) {
+      return null
+    } // no collision
+
+    // collision detected
+    const t = t_numer / cross
+
+    return [
+      a0x + (t * v0x),
+      a0y + (t * v0y),
+    ]
   }
 
   static SnapAllPoints(ls0: LoopState, ls1: LoopState, snapDist: number): void {
@@ -315,44 +315,6 @@ export class LoopState {
     return ls2
   }
 
-  private isPointInsideLoop(x: number, y: number, loopIndex: number): boolean {
-    const points = this._points
-    const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
-    const loopEnd = this._loopLengthes[loopIndex]
-    let x0 = points[loopEnd - LoopState.POINT_DATA_LENGTH]
-    let y0 = points[loopEnd - LoopState.POINT_DATA_LENGTH + 1]
-    let x1
-    let y1
-    let inside = false
-
-    for (let i = loopBegin; i < loopEnd; i += LoopState.POINT_DATA_LENGTH) {
-      x1 = points[i]
-      y1 = points[i + 1]
-
-      if (((y1 > y) !== (y0 > y)) && (x < (x0 - x1) * (y - y1) / (y0 - y1) + x1)) {
-        inside = !inside
-      }
-
-      x0 = x1
-      y0 = y1
-    }
-
-    return (loopIndex === 0) === inside
-  }
-
-  private findPointNearbyCoords(x: number, y: number, dist: number, flatFrom: number, flatTo: number): number | null {
-    const points = this._points
-    const dist2 = dist * dist
-
-    for (let i = flatFrom; i < flatTo; i += LoopState.POINT_DATA_LENGTH) {
-      if (len2(x, y, points[i], points[i + 1]) < dist2) {
-        return i
-      }
-    }
-
-    return null
-  }
-
   get loopLengthes(): readonly number[] {
     return this._loopLengthes
   }
@@ -428,6 +390,44 @@ export class LoopState {
     }
 
     this._points.length = this._loopLengthes[this._loopLengthes.length - 1]
+  }
+
+  private isPointInsideLoop(x: number, y: number, loopIndex: number): boolean {
+    const points = this._points
+    const loopBegin = loopIndex === 0 ? 0 : this._loopLengthes[loopIndex - 1]
+    const loopEnd = this._loopLengthes[loopIndex]
+    let x0 = points[loopEnd - LoopState.POINT_DATA_LENGTH]
+    let y0 = points[loopEnd - LoopState.POINT_DATA_LENGTH + 1]
+    let x1
+    let y1
+    let inside = false
+
+    for (let i = loopBegin; i < loopEnd; i += LoopState.POINT_DATA_LENGTH) {
+      x1 = points[i]
+      y1 = points[i + 1]
+
+      if (((y1 > y) !== (y0 > y)) && (x < (x0 - x1) * (y - y1) / (y0 - y1) + x1)) {
+        inside = !inside
+      }
+
+      x0 = x1
+      y0 = y1
+    }
+
+    return (loopIndex === 0) === inside
+  }
+
+  private findPointNearbyCoords(x: number, y: number, dist: number, flatFrom: number, flatTo: number): number | null {
+    const points = this._points
+    const dist2 = dist * dist
+
+    for (let i = flatFrom; i < flatTo; i += LoopState.POINT_DATA_LENGTH) {
+      if (len2(x, y, points[i], points[i + 1]) < dist2) {
+        return i
+      }
+    }
+
+    return null
   }
 
   private isNewEdgeMiddleInsideAllLoops(x: number, y: number, basePointIndex: number): boolean {
@@ -779,7 +779,7 @@ export class LoopState {
     return null
   }
 
-  private findPointNearbyOnLoop(x: number, y: number, loopPointIndex: number, dist = 8): number | null {
+  private findPointNearbyOnLoop(x: number, y: number, loopPointIndex: number, dist: number): number | null {
     const points = this.pointsFlatArray
     const pi0 = LoopState.toFlatPtIndex(loopPointIndex)
     const pi1 = this.wrapLoopIndex(pi0, 1)
